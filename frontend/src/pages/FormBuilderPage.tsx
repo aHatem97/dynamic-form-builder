@@ -26,6 +26,8 @@ import {
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
+import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
+import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 
 import type { Question, QuestionType } from "../types/forms";
 
@@ -66,6 +68,35 @@ function FormBuilderPage() {
         question.id === questionId ? { ...question, ...updates } : question,
       ),
     );
+  };
+
+  const handleDeleteQuestion = (questionId: string) => {
+    setQuestions((currentQuestions) =>
+      currentQuestions.filter((question) => question.id !== questionId),
+    );
+  };
+
+  const handleMoveQuestion = (
+    questionIndex: number,
+    direction: "up" | "down",
+  ) => {
+    setQuestions((currentQuestions) => {
+      const newIndex =
+        direction === "up" ? questionIndex - 1 : questionIndex + 1;
+
+      if (newIndex < 0 || newIndex >= currentQuestions.length) {
+        return currentQuestions;
+      }
+
+      const reorderedQuestions = [...currentQuestions];
+
+      [reorderedQuestions[questionIndex], reorderedQuestions[newIndex]] = [
+        reorderedQuestions[newIndex],
+        reorderedQuestions[questionIndex],
+      ];
+
+      return reorderedQuestions;
+    });
   };
 
   const handleAddOption = (questionId: string) => {
@@ -280,19 +311,50 @@ function FormBuilderPage() {
                       </Typography>
                     </Box>
 
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={question.required}
-                          onChange={(event) =>
-                            handleUpdateQuestion(question.id, {
-                              required: event.target.checked,
-                            })
-                          }
-                        />
-                      }
-                      label="Required"
-                    />
+                    <Stack
+                      sx={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 0.5,
+                      }}
+                    >
+                      <IconButton
+                        aria-label="Move question up"
+                        disabled={index === 0}
+                        onClick={() => handleMoveQuestion(index, "up")}
+                      >
+                        <ArrowUpwardIcon />
+                      </IconButton>
+
+                      <IconButton
+                        aria-label="Move question down"
+                        disabled={index === questions.length - 1}
+                        onClick={() => handleMoveQuestion(index, "down")}
+                      >
+                        <ArrowDownwardIcon />
+                      </IconButton>
+
+                      <IconButton
+                        aria-label="Delete question"
+                        onClick={() => handleDeleteQuestion(question.id)}
+                      >
+                        <DeleteOutlinedIcon />
+                      </IconButton>
+
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={question.required}
+                            onChange={(event) =>
+                              handleUpdateQuestion(question.id, {
+                                required: event.target.checked,
+                              })
+                            }
+                          />
+                        }
+                        label="Required"
+                      />
+                    </Stack>
                   </Stack>
 
                   <TextField
