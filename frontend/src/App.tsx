@@ -13,6 +13,8 @@ function App() {
 
       <Route path="/forms" element={<FormsPage />} />
 
+      <Route path="/forms/create" element={<FormBuilderPage />} />
+
       <Route path="/forms/:formId/edit" element={<FormBuilderPage />} />
 
       <Route path="/forms/:formId/submissions" element={<SubmissionsPage />} />

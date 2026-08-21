@@ -23,18 +23,6 @@ function FormsPage() {
 
   const [forms, setForms] = useState<Form[]>(mockForms);
 
-  const handleCreateForm = () => {
-    const newForm: Form = {
-      id: crypto.randomUUID(),
-      title: "Untitled Form",
-      status: "draft",
-      questionCount: 0,
-      submissionCount: 0,
-    };
-
-    setForms((currentForms) => [...currentForms, newForm]);
-  };
-
   return (
     <Box
       sx={{
@@ -64,7 +52,7 @@ function FormsPage() {
           <Button
             variant="contained"
             startIcon={<AddIcon />}
-            onClick={handleCreateForm}
+            onClick={() => navigate("/forms/create")}
           >
             New Form
           </Button>
