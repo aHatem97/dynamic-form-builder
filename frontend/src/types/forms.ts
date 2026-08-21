@@ -7,3 +7,13 @@ export interface Form {
   questionCount: number;
   submissionCount: number;
 }
+
+export type QuestionType = "text" | "multiple_choice" | "file";
+
+export interface Question {
+  id: string;
+  type: QuestionType;
+  label: string;
+  required: boolean;
+  options?: string[];
+}

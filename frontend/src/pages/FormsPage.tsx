@@ -12,16 +12,12 @@ import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import ListAltIcon from "@mui/icons-material/ListAlt";
 
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { mockForms } from "../data/mockForms";
-import type { Form } from "../types/forms";
 
 function FormsPage() {
   const navigate = useNavigate();
-
-  const [forms, setForms] = useState<Form[]>(mockForms);
 
   return (
     <Box
@@ -34,7 +30,7 @@ function FormsPage() {
         <Stack
           sx={{
             mb: 4,
-            direction: "row",
+            flexDirection: "row",
             justifyContent: "space-between",
             alignItems: "center",
           }}
@@ -59,7 +55,7 @@ function FormsPage() {
         </Stack>
 
         <Stack spacing={2}>
-          {forms.map((form) => (
+          {mockForms.map((form) => (
             <Paper
               key={form.id}
               variant="outlined"
@@ -70,10 +66,10 @@ function FormsPage() {
             >
               <Stack
                 sx={{
-                  direction: "row",
+                  flexDirection: "row",
                   justifyContent: "space-between",
                   alignItems: "flex-start",
-                  spacing: 2,
+                  gap: 2,
                 }}
               >
                 <Box>
@@ -98,7 +94,7 @@ function FormsPage() {
                 />
               </Stack>
 
-              <Stack direction="row" spacing={1} sx={{ mt: 3 }}>
+              <Stack sx={{ mt: 3, flexDirection: "row", gap: 1 }}>
                 <Button
                   size="small"
                   startIcon={<EditIcon />}
