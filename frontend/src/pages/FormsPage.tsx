@@ -12,12 +12,28 @@ import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import ListAltIcon from "@mui/icons-material/ListAlt";
 
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { mockForms } from "../data/mockForms";
+import type { Form } from "../types/forms";
 
 function FormsPage() {
   const navigate = useNavigate();
+
+  const [forms, setForms] = useState<Form[]>(mockForms);
+
+  const handleCreateForm = () => {
+    const newForm: Form = {
+      id: crypto.randomUUID(),
+      title: "Untitled Form",
+      status: "draft",
+      questionCount: 0,
+      submissionCount: 0,
+    };
+
+    setForms((currentForms) => [...currentForms, newForm]);
+  };
 
   return (
     <Box
@@ -45,13 +61,17 @@ function FormsPage() {
             </Typography>
           </Box>
 
-          <Button variant="contained" startIcon={<AddIcon />}>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleCreateForm}
+          >
             New Form
           </Button>
         </Stack>
 
         <Stack spacing={2}>
-          {mockForms.map((form) => (
+          {forms.map((form) => (
             <Paper
               key={form.id}
               variant="outlined"
@@ -62,10 +82,9 @@ function FormsPage() {
             >
               <Stack
                 sx={{
-                  mb: 4,
                   direction: "row",
                   justifyContent: "space-between",
-                  alignItems: "center",
+                  alignItems: "flex-start",
                   spacing: 2,
                 }}
               >
