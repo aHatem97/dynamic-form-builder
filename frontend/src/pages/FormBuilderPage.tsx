@@ -18,10 +18,14 @@ import {
   InputLabel,
   MenuItem,
   Select,
+  FormControlLabel,
+  IconButton,
+  Switch,
 } from "@mui/material";
 
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import AddIcon from "@mui/icons-material/Add";
+import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 
 import type { Question, QuestionType } from "../types/forms";
 
@@ -42,13 +46,83 @@ function FormBuilderPage() {
       label: "Untitled Question",
       required: false,
       options:
-        selectedQuestionType === "multiple_choice" ? ["Option 1"] : undefined,
+        selectedQuestionType === "multiple_choice"
+          ? ["Option 1", "Option 2"]
+          : undefined,
     };
 
     setQuestions((currentQuestions) => [...currentQuestions, newQuestion]);
 
     setQuestionDialogOpen(false);
     setSelectedQuestionType("text");
+  };
+
+  const handleUpdateQuestion = (
+    questionId: string,
+    updates: Partial<Question>,
+  ) => {
+    setQuestions((currentQuestions) =>
+      currentQuestions.map((question) =>
+        question.id === questionId ? { ...question, ...updates } : question,
+      ),
+    );
+  };
+
+  const handleAddOption = (questionId: string) => {
+    setQuestions((currentQuestions) =>
+      currentQuestions.map((question) => {
+        if (question.id !== questionId || question.type !== "multiple_choice") {
+          return question;
+        }
+
+        const options = question.options ?? [];
+
+        return {
+          ...question,
+          options: [...options, `Option ${options.length + 1}`],
+        };
+      }),
+    );
+  };
+
+  const handleUpdateOption = (
+    questionId: string,
+    optionIndex: number,
+    value: string,
+  ) => {
+    setQuestions((currentQuestions) =>
+      currentQuestions.map((question) => {
+        if (question.id !== questionId || question.type !== "multiple_choice") {
+          return question;
+        }
+
+        const options = [...(question.options ?? [])];
+
+        options[optionIndex] = value;
+
+        return {
+          ...question,
+          options,
+        };
+      }),
+    );
+  };
+
+  const handleRemoveOption = (questionId: string, optionIndex: number) => {
+    setQuestions((currentQuestions) =>
+      currentQuestions.map((question) => {
+        if (question.id !== questionId || question.type !== "multiple_choice") {
+          return question;
+        }
+
+        return {
+          ...question,
+          options: (question.options ?? []).filter(
+            (_, index) => index !== optionIndex,
+          ),
+        };
+      }),
+    );
   };
 
   return (
@@ -176,30 +250,162 @@ function FormBuilderPage() {
                     borderRadius: 2,
                   }}
                 >
-                  <Typography
+                  <Stack
                     sx={{
-                      fontWeight: 600,
-                      mb: 1,
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      mb: 3,
                     }}
                   >
-                    Question {index + 1}
-                  </Typography>
+                    <Box>
+                      <Typography
+                        sx={{
+                          fontWeight: 600,
+                        }}
+                      >
+                        Question {index + 1}
+                      </Typography>
 
-                  <Typography>{question.label}</Typography>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: "text.secondary",
+                        }}
+                      >
+                        {question.type === "text" && "Text Input"}
+                        {question.type === "multiple_choice" &&
+                          "Multiple Choice"}
+                        {question.type === "file" && "File Upload"}
+                      </Typography>
+                    </Box>
 
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      color: "text.secondary",
-                      mt: 1,
-                    }}
-                  >
-                    {question.type === "text" && "Text Input"}
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={question.required}
+                          onChange={(event) =>
+                            handleUpdateQuestion(question.id, {
+                              required: event.target.checked,
+                            })
+                          }
+                        />
+                      }
+                      label="Required"
+                    />
+                  </Stack>
 
-                    {question.type === "multiple_choice" && "Multiple Choice"}
+                  <TextField
+                    fullWidth
+                    label={`Question${question.required ? " *" : ""}`}
+                    value={question.label}
+                    onChange={(event) =>
+                      handleUpdateQuestion(question.id, {
+                        label: event.target.value,
+                      })
+                    }
+                  />
 
-                    {question.type === "file" && "File Upload"}
-                  </Typography>
+                  {question.type === "text" && (
+                    <Box sx={{ mt: 3 }}>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: "text.secondary",
+                          mb: 1,
+                        }}
+                      >
+                        Preview
+                      </Typography>
+
+                      <TextField
+                        fullWidth
+                        disabled
+                        placeholder="Respondent enters text here"
+                      />
+                    </Box>
+                  )}
+
+                  {question.type === "multiple_choice" && (
+                    <Box sx={{ mt: 3 }}>
+                      <Typography
+                        sx={{
+                          fontWeight: 600,
+                          mb: 1.5,
+                        }}
+                      >
+                        Options
+                      </Typography>
+
+                      <Stack spacing={1.5}>
+                        {(question.options ?? []).map((option, optionIndex) => (
+                          <Stack
+                            key={optionIndex}
+                            sx={{
+                              flexDirection: "row",
+                              alignItems: "center",
+                              gap: 1,
+                            }}
+                          >
+                            <TextField
+                              fullWidth
+                              size="small"
+                              value={option}
+                              onChange={(event) =>
+                                handleUpdateOption(
+                                  question.id,
+                                  optionIndex,
+                                  event.target.value,
+                                )
+                              }
+                            />
+
+                            <IconButton
+                              onClick={() =>
+                                handleRemoveOption(question.id, optionIndex)
+                              }
+                              sx={{
+                                display:
+                                  (question.options?.length ?? 0) <= 1
+                                    ? "none"
+                                    : "block",
+                              }}
+                            >
+                              <DeleteOutlinedIcon />
+                            </IconButton>
+                          </Stack>
+                        ))}
+                      </Stack>
+
+                      <Button
+                        variant="text"
+                        onClick={() => handleAddOption(question.id)}
+                        sx={{
+                          mt: 1.5,
+                        }}
+                      >
+                        + Add Option
+                      </Button>
+                    </Box>
+                  )}
+
+                  {question.type === "file" && (
+                    <Box sx={{ mt: 3 }}>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: "text.secondary",
+                          mb: 1,
+                        }}
+                      >
+                        Preview
+                      </Typography>
+
+                      <Button variant="outlined" disabled>
+                        Choose File
+                      </Button>
+                    </Box>
+                  )}
                 </Paper>
               ))}
             </Stack>
