@@ -1,51 +1,29 @@
-import { useEffect, useState } from "react";
-import { Container, Typography, Chip, Stack } from "@mui/material";
+import { Navigate, Route, Routes } from "react-router-dom";
 
-import { getHealth } from "./lib/api";
+import FormsPage from "./pages/FormsPage";
+import FormBuilderPage from "./pages/FormBuilderPage";
+import PublicFormPage from "./pages/PublicFormPage";
+import SubmissionsPage from "./pages/SubmissionsPage";
+import SubmissionDetailsPage from "./pages/SubmissionDetailsPage";
 
 function App() {
-  const [apiStatus, setApiStatus] = useState<
-    "checking" | "connected" | "error"
-  >("checking");
-
-  useEffect(() => {
-    getHealth()
-      .then(() => {
-        setApiStatus("connected");
-      })
-      .catch(() => {
-        setApiStatus("error");
-      });
-  }, []);
-
   return (
-    <Container sx={{ py: 8 }}>
-      <Stack spacing={2}>
-        <Typography variant="h3" sx={{ fontWeight: 700 }}>
-          Dynamic Form Builder
-        </Typography>
+    <Routes>
+      <Route path="/" element={<Navigate to="/forms" replace />} />
 
-        <Typography color="text.secondary">React + Fastify</Typography>
+      <Route path="/forms" element={<FormsPage />} />
 
-        <Chip
-          label={
-            apiStatus === "checking"
-              ? "Checking API..."
-              : apiStatus === "connected"
-                ? "API Connected"
-                : "API Connection Failed"
-          }
-          color={
-            apiStatus === "connected"
-              ? "success"
-              : apiStatus === "error"
-                ? "error"
-                : "default"
-          }
-          sx={{ width: "fit-content" }}
-        />
-      </Stack>
-    </Container>
+      <Route path="/forms/:formId/edit" element={<FormBuilderPage />} />
+
+      <Route path="/forms/:formId/submissions" element={<SubmissionsPage />} />
+
+      <Route
+        path="/forms/:formId/submissions/:submissionId"
+        element={<SubmissionDetailsPage />}
+      />
+
+      <Route path="/f/:slug" element={<PublicFormPage />} />
+    </Routes>
   );
 }
 
