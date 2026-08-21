@@ -14,22 +14,7 @@ import ListAltIcon from "@mui/icons-material/ListAlt";
 
 import { useNavigate } from "react-router-dom";
 
-const forms = [
-  {
-    id: "1",
-    title: "Customer Feedback",
-    status: "published",
-    questionCount: 3,
-    submissionCount: 4,
-  },
-  {
-    id: "2",
-    title: "Job Application",
-    status: "draft",
-    questionCount: 2,
-    submissionCount: 0,
-  },
-];
+import { mockForms } from "../data/mockForms";
 
 function FormsPage() {
   const navigate = useNavigate();
@@ -46,7 +31,7 @@ function FormsPage() {
           sx={{
             mb: 4,
             direction: "row",
-            justifyConent: "space-between",
+            justifyContent: "space-between",
             alignItems: "center",
           }}
         >
@@ -66,7 +51,7 @@ function FormsPage() {
         </Stack>
 
         <Stack spacing={2}>
-          {forms.map((form) => (
+          {mockForms.map((form) => (
             <Paper
               key={form.id}
               variant="outlined"
@@ -79,7 +64,7 @@ function FormsPage() {
                 sx={{
                   mb: 4,
                   direction: "row",
-                  justifyConent: "space-between",
+                  justifyContent: "space-between",
                   alignItems: "center",
                   spacing: 2,
                 }}
