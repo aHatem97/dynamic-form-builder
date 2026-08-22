@@ -11,6 +11,7 @@ export async function buildApp() {
 
   await app.register(cors, {
     origin: process.env.FRONTEND_URL ?? "http://localhost:5173",
+    methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   });
 
   await app.register(formRoutes);

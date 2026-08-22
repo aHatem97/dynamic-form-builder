@@ -1,6 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-
+import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   Box,
   Button,
@@ -31,10 +30,19 @@ import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 
 import type { Question, QuestionType } from "../types/forms";
 
-import { createForm, type CreateQuestionType } from "../services/forms.service";
+import {
+  createForm,
+  getFormById,
+  updateForm,
+  type ApiQuestionType,
+  type CreateQuestionType,
+} from "../services/forms.service";
 
 function FormBuilderPage() {
   const navigate = useNavigate();
+  const { formId } = useParams();
+
+  const isEditMode = Boolean(formId);
 
   const [title, setTitle] = useState("Untitled Form");
 
@@ -45,6 +53,9 @@ function FormBuilderPage() {
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  const [loadingForm, setLoadingForm] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const handleAddQuestion = () => {
     const newQuestion: Question = {
@@ -161,7 +172,7 @@ function FormBuilderPage() {
     );
   };
 
-  const handleCreateForm = async () => {
+  const handleSaveForm = async () => {
     const trimmedTitle = title.trim();
 
     if (!trimmedTitle) {
@@ -174,30 +185,84 @@ function FormBuilderPage() {
       file: "FILE",
     };
 
+    const payload = {
+      title: trimmedTitle,
+      questions: questions.map((question) => ({
+        type: typeMap[question.type],
+        label: question.label.trim(),
+        required: question.required,
+        options:
+          question.type === "multiple_choice" ? question.options : undefined,
+      })),
+    };
+
     try {
       setSaving(true);
       setSaveError(null);
 
-      await createForm({
-        title: trimmedTitle,
-        questions: questions.map((question) => ({
-          type: typeMap[question.type],
-          label: question.label.trim(),
-          required: question.required,
-          options:
-            question.type === "multiple_choice" ? question.options : undefined,
-        })),
-      });
+      if (isEditMode && formId) {
+        await updateForm(formId, payload);
+      } else {
+        await createForm(payload);
+      }
 
       navigate("/forms");
     } catch (error) {
       setSaveError(
-        error instanceof Error ? error.message : "Failed to create form",
+        error instanceof Error
+          ? error.message
+          : isEditMode
+            ? "Failed to update form"
+            : "Failed to create form",
       );
     } finally {
       setSaving(false);
     }
   };
+
+  const typeFromApi: Record<ApiQuestionType, QuestionType> = {
+    TEXT: "text",
+    MULTIPLE_CHOICE: "multiple_choice",
+    FILE: "file",
+  };
+
+  useEffect(() => {
+    if (!formId) {
+      return;
+    }
+
+    const loadForm = async () => {
+      try {
+        setLoadingForm(true);
+        setLoadError(null);
+
+        const form = await getFormById(formId);
+
+        setTitle(form.title);
+
+        setQuestions(
+          form.questions.map((question) => ({
+            id: question.id,
+            type: typeFromApi[question.type],
+            label: question.label,
+            required: question.required,
+            options:
+              question.type === "MULTIPLE_CHOICE"
+                ? (question.options ?? [])
+                : undefined,
+          })),
+        );
+      } catch (error) {
+        setLoadError(
+          error instanceof Error ? error.message : "Failed to load form",
+        );
+      } finally {
+        setLoadingForm(false);
+      }
+    };
+
+    void loadForm();
+  }, [formId]);
 
   return (
     <Box
@@ -246,294 +311,327 @@ function FormBuilderPage() {
           </Typography>
         </Stack>
 
-        <Paper
-          variant="outlined"
-          sx={{
-            p: 3,
-            borderRadius: 2,
-          }}
-        >
+        {loadingForm && (
           <Typography
-            variant="h6"
             sx={{
-              fontWeight: 600,
+              color: "text.secondary",
               mb: 2,
             }}
           >
-            Form Details
+            Loading form...
           </Typography>
+        )}
 
-          <TextField
-            fullWidth
-            label="Form title"
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-          />
-
-          <Divider sx={{ my: 4 }} />
-
-          <Stack
+        {loadError && (
+          <Typography
             sx={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
+              color: "error.main",
+              mb: 2,
             }}
           >
-            <Box>
-              <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                Questions
-              </Typography>
+            {loadError}
+          </Typography>
+        )}
 
-              <Typography variant="body2" color="text.secondary">
-                Add questions to your form.
-              </Typography>
-            </Box>
-
-            <Button
-              variant="outlined"
-              startIcon={<AddIcon />}
-              onClick={() => setQuestionDialogOpen(true)}
-            >
-              Add Question
-            </Button>
-          </Stack>
-
-          {questions.length === 0 ? (
-            <Box
+        {!loadingForm && !loadError && (
+          <Paper
+            variant="outlined"
+            sx={{
+              p: 3,
+              borderRadius: 2,
+            }}
+          >
+            <Typography
+              variant="h6"
               sx={{
-                mt: 3,
-                p: 5,
-                textAlign: "center",
-                border: "1px dashed",
-                borderColor: "grey.300",
-                borderRadius: 2,
+                fontWeight: 600,
+                mb: 2,
               }}
             >
-              <Typography sx={{ color: "text.secondary" }}>
-                No questions yet. Add your first question.
-              </Typography>
-            </Box>
-          ) : (
-            <Stack sx={{ mt: 3, gap: 2 }}>
-              {questions.map((question, index) => (
-                <Paper
-                  key={question.id}
-                  variant="outlined"
-                  sx={{
-                    p: 3,
-                    borderRadius: 2,
-                  }}
-                >
-                  <Stack
+              Form Details
+            </Typography>
+
+            <TextField
+              fullWidth
+              label="Form title"
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+            />
+
+            <Divider sx={{ my: 4 }} />
+
+            <Stack
+              sx={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <Box>
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                  Questions
+                </Typography>
+
+                <Typography variant="body2" color="text.secondary">
+                  Add questions to your form.
+                </Typography>
+              </Box>
+
+              <Button
+                variant="outlined"
+                startIcon={<AddIcon />}
+                onClick={() => setQuestionDialogOpen(true)}
+              >
+                Add Question
+              </Button>
+            </Stack>
+
+            {questions.length === 0 ? (
+              <Box
+                sx={{
+                  mt: 3,
+                  p: 5,
+                  textAlign: "center",
+                  border: "1px dashed",
+                  borderColor: "grey.300",
+                  borderRadius: 2,
+                }}
+              >
+                <Typography sx={{ color: "text.secondary" }}>
+                  No questions yet. Add your first question.
+                </Typography>
+              </Box>
+            ) : (
+              <Stack sx={{ mt: 3, gap: 2 }}>
+                {questions.map((question, index) => (
+                  <Paper
+                    key={question.id}
+                    variant="outlined"
                     sx={{
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      mb: 3,
+                      p: 3,
+                      borderRadius: 2,
                     }}
                   >
-                    <Box>
-                      <Typography
-                        sx={{
-                          fontWeight: 600,
-                        }}
-                      >
-                        Question {index + 1}
-                      </Typography>
-
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          color: "text.secondary",
-                        }}
-                      >
-                        {question.type === "text" && "Text Input"}
-                        {question.type === "multiple_choice" &&
-                          "Multiple Choice"}
-                        {question.type === "file" && "File Upload"}
-                      </Typography>
-                    </Box>
-
                     <Stack
                       sx={{
                         flexDirection: "row",
+                        justifyContent: "space-between",
                         alignItems: "center",
-                        gap: 0.5,
+                        mb: 3,
                       }}
                     >
-                      <IconButton
-                        aria-label="Move question up"
-                        disabled={index === 0}
-                        onClick={() => handleMoveQuestion(index, "up")}
-                      >
-                        <ArrowUpwardIcon />
-                      </IconButton>
+                      <Box>
+                        <Typography
+                          sx={{
+                            fontWeight: 600,
+                          }}
+                        >
+                          Question {index + 1}
+                        </Typography>
 
-                      <IconButton
-                        aria-label="Move question down"
-                        disabled={index === questions.length - 1}
-                        onClick={() => handleMoveQuestion(index, "down")}
-                      >
-                        <ArrowDownwardIcon />
-                      </IconButton>
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            color: "text.secondary",
+                          }}
+                        >
+                          {question.type === "text" && "Text Input"}
+                          {question.type === "multiple_choice" &&
+                            "Multiple Choice"}
+                          {question.type === "file" && "File Upload"}
+                        </Typography>
+                      </Box>
 
-                      <IconButton
-                        aria-label="Delete question"
-                        onClick={() => handleDeleteQuestion(question.id)}
-                      >
-                        <DeleteOutlinedIcon />
-                      </IconButton>
-
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={question.required}
-                            onChange={(event) =>
-                              handleUpdateQuestion(question.id, {
-                                required: event.target.checked,
-                              })
-                            }
-                          />
-                        }
-                        label="Required"
-                      />
-                    </Stack>
-                  </Stack>
-
-                  <TextField
-                    fullWidth
-                    label={`Question${question.required ? " *" : ""}`}
-                    value={question.label}
-                    onChange={(event) =>
-                      handleUpdateQuestion(question.id, {
-                        label: event.target.value,
-                      })
-                    }
-                  />
-
-                  {question.type === "text" && (
-                    <Box sx={{ mt: 3 }}>
-                      <Typography
-                        variant="body2"
+                      <Stack
                         sx={{
-                          color: "text.secondary",
-                          mb: 1,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 0.5,
                         }}
                       >
-                        Preview
-                      </Typography>
+                        <IconButton
+                          aria-label="Move question up"
+                          disabled={index === 0}
+                          onClick={() => handleMoveQuestion(index, "up")}
+                        >
+                          <ArrowUpwardIcon />
+                        </IconButton>
 
-                      <TextField
-                        fullWidth
-                        disabled
-                        placeholder="Respondent enters text here"
-                      />
-                    </Box>
-                  )}
+                        <IconButton
+                          aria-label="Move question down"
+                          disabled={index === questions.length - 1}
+                          onClick={() => handleMoveQuestion(index, "down")}
+                        >
+                          <ArrowDownwardIcon />
+                        </IconButton>
 
-                  {question.type === "multiple_choice" && (
-                    <Box sx={{ mt: 3 }}>
-                      <Typography
-                        sx={{
-                          fontWeight: 600,
-                          mb: 1.5,
-                        }}
-                      >
-                        Options
-                      </Typography>
+                        <IconButton
+                          aria-label="Delete question"
+                          onClick={() => handleDeleteQuestion(question.id)}
+                        >
+                          <DeleteOutlinedIcon />
+                        </IconButton>
 
-                      <Stack spacing={1.5}>
-                        {(question.options ?? []).map((option, optionIndex) => (
-                          <Stack
-                            key={optionIndex}
-                            sx={{
-                              flexDirection: "row",
-                              alignItems: "center",
-                              gap: 1,
-                            }}
-                          >
-                            <TextField
-                              fullWidth
-                              size="small"
-                              value={option}
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={question.required}
                               onChange={(event) =>
-                                handleUpdateOption(
-                                  question.id,
-                                  optionIndex,
-                                  event.target.value,
-                                )
+                                handleUpdateQuestion(question.id, {
+                                  required: event.target.checked,
+                                })
                               }
                             />
-
-                            <IconButton
-                              onClick={() =>
-                                handleRemoveOption(question.id, optionIndex)
-                              }
-                              sx={{
-                                display:
-                                  (question.options?.length ?? 0) <= 1
-                                    ? "none"
-                                    : "block",
-                              }}
-                            >
-                              <DeleteOutlinedIcon />
-                            </IconButton>
-                          </Stack>
-                        ))}
+                          }
+                          label="Required"
+                        />
                       </Stack>
+                    </Stack>
 
-                      <Button
-                        variant="text"
-                        onClick={() => handleAddOption(question.id)}
-                        sx={{
-                          mt: 1.5,
-                        }}
-                      >
-                        + Add Option
-                      </Button>
-                    </Box>
-                  )}
+                    <TextField
+                      fullWidth
+                      label={`Question${question.required ? " *" : ""}`}
+                      value={question.label}
+                      onChange={(event) =>
+                        handleUpdateQuestion(question.id, {
+                          label: event.target.value,
+                        })
+                      }
+                    />
 
-                  {question.type === "file" && (
-                    <Box sx={{ mt: 3 }}>
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          color: "text.secondary",
-                          mb: 1,
-                        }}
-                      >
-                        Preview
-                      </Typography>
+                    {question.type === "text" && (
+                      <Box sx={{ mt: 3 }}>
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            color: "text.secondary",
+                            mb: 1,
+                          }}
+                        >
+                          Preview
+                        </Typography>
 
-                      <Button variant="outlined" disabled>
-                        Choose File
-                      </Button>
-                    </Box>
-                  )}
-                </Paper>
-              ))}
-            </Stack>
-          )}
+                        <TextField
+                          fullWidth
+                          disabled
+                          placeholder="Respondent enters text here"
+                        />
+                      </Box>
+                    )}
 
-          <Stack
-            sx={{
-              mt: 4,
-              flexDirection: "row",
-              justifyContent: "flex-end",
-            }}
-          >
-            <Button
-              variant="contained"
-              onClick={handleCreateForm}
-              disabled={
-                saving ||
-                !title.trim() ||
-                questions.some((question) => !question.label.trim())
-              }
+                    {question.type === "multiple_choice" && (
+                      <Box sx={{ mt: 3 }}>
+                        <Typography
+                          sx={{
+                            fontWeight: 600,
+                            mb: 1.5,
+                          }}
+                        >
+                          Options
+                        </Typography>
+
+                        <Stack spacing={1.5}>
+                          {(question.options ?? []).map(
+                            (option, optionIndex) => (
+                              <Stack
+                                key={optionIndex}
+                                sx={{
+                                  flexDirection: "row",
+                                  alignItems: "center",
+                                  gap: 1,
+                                }}
+                              >
+                                <TextField
+                                  fullWidth
+                                  size="small"
+                                  value={option}
+                                  onChange={(event) =>
+                                    handleUpdateOption(
+                                      question.id,
+                                      optionIndex,
+                                      event.target.value,
+                                    )
+                                  }
+                                />
+
+                                <IconButton
+                                  onClick={() =>
+                                    handleRemoveOption(question.id, optionIndex)
+                                  }
+                                  sx={{
+                                    display:
+                                      (question.options?.length ?? 0) <= 1
+                                        ? "none"
+                                        : "block",
+                                  }}
+                                >
+                                  <DeleteOutlinedIcon />
+                                </IconButton>
+                              </Stack>
+                            ),
+                          )}
+                        </Stack>
+
+                        <Button
+                          variant="text"
+                          onClick={() => handleAddOption(question.id)}
+                          sx={{
+                            mt: 1.5,
+                          }}
+                        >
+                          + Add Option
+                        </Button>
+                      </Box>
+                    )}
+
+                    {question.type === "file" && (
+                      <Box sx={{ mt: 3 }}>
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            color: "text.secondary",
+                            mb: 1,
+                          }}
+                        >
+                          Preview
+                        </Typography>
+
+                        <Button variant="outlined" disabled>
+                          Choose File
+                        </Button>
+                      </Box>
+                    )}
+                  </Paper>
+                ))}
+              </Stack>
+            )}
+
+            <Stack
+              sx={{
+                mt: 4,
+                flexDirection: "row",
+                justifyContent: "flex-end",
+              }}
             >
-              {saving ? "Creating..." : "Create Form"}
-            </Button>
+              <Button
+                variant="contained"
+                onClick={handleSaveForm}
+                disabled={
+                  saving ||
+                  loadingForm ||
+                  !title.trim() ||
+                  questions.some((question) => !question.label.trim())
+                }
+              >
+                {saving
+                  ? isEditMode
+                    ? "Saving..."
+                    : "Creating..."
+                  : isEditMode
+                    ? "Save Changes"
+                    : "Create Form"}
+              </Button>
+            </Stack>
 
             {saveError && (
               <Typography
@@ -541,13 +639,14 @@ function FormBuilderPage() {
                 sx={{
                   color: "error.main",
                   mt: 2,
+                  textAlign: "right",
                 }}
               >
                 {saveError}
               </Typography>
             )}
-          </Stack>
-        </Paper>
+          </Paper>
+        )}
       </Container>
 
       <Dialog
