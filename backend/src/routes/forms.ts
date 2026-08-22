@@ -76,4 +76,31 @@ export async function formRoutes(app: FastifyInstance) {
 
     return reply.status(201).send(form);
   });
+
+  app.get("/api/forms", async () => {
+    const forms = await prisma.form.findMany({
+      orderBy: {
+        createdAt: "desc",
+      },
+      include: {
+        _count: {
+          select: {
+            questions: true,
+            submissions: true,
+          },
+        },
+      },
+    });
+
+    return forms.map((form) => ({
+      id: form.id,
+      title: form.title,
+      status: form.status.toLowerCase(),
+      publicSlug: form.publicSlug,
+      questionCount: form._count.questions,
+      submissionCount: form._count.submissions,
+      createdAt: form.createdAt,
+      updatedAt: form.updatedAt,
+    }));
+  });
 }
