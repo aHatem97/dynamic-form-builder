@@ -17,12 +17,14 @@ import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import ListAltIcon from "@mui/icons-material/ListAlt";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 
 import { useNavigate } from "react-router-dom";
 
 import {
   deleteForm,
   getForms,
+  updateFormStatus,
   type FormSummary,
 } from "../services/forms.service";
 
@@ -37,6 +39,15 @@ function FormsPage() {
 
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
+
+  const [statusError, setStatusError] = useState<{
+    formId: string;
+    message: string;
+  } | null>(null);
+
+  const [copiedFormId, setCopiedFormId] = useState<string | null>(null);
 
   useEffect(() => {
     const loadForms = async () => {
@@ -78,6 +89,51 @@ function FormsPage() {
     } finally {
       setDeleting(false);
     }
+  };
+
+  const handleStatusChange = async (form: FormSummary) => {
+    const newStatus = form.status === "published" ? "draft" : "published";
+
+    try {
+      setUpdatingStatusId(form.id);
+      setStatusError(null);
+
+      const updatedForm = await updateFormStatus(form.id, newStatus);
+
+      setForms((currentForms) =>
+        currentForms.map((currentForm) =>
+          currentForm.id === form.id
+            ? {
+                ...currentForm,
+                status: updatedForm.status,
+                publicSlug: updatedForm.publicSlug,
+              }
+            : currentForm,
+        ),
+      );
+    } catch (error) {
+      setStatusError({
+        formId: form.id,
+        message:
+          error instanceof Error
+            ? error.message
+            : "Failed to update form status",
+      });
+    } finally {
+      setUpdatingStatusId(null);
+    }
+  };
+
+  const handleCopyPublicLink = async (formId: string, publicSlug: string) => {
+    const publicUrl = `${window.location.origin}/f/${publicSlug}`;
+
+    await navigator.clipboard.writeText(publicUrl);
+
+    setCopiedFormId(formId);
+
+    setTimeout(() => {
+      setCopiedFormId(null);
+    }, 2000);
   };
   return (
     <Box
@@ -190,7 +246,99 @@ function FormsPage() {
                   >
                     Delete
                   </Button>
+
+                  <Button
+                    size="small"
+                    variant={
+                      form.status === "published" ? "outlined" : "contained"
+                    }
+                    disabled={updatingStatusId === form.id}
+                    onClick={() => handleStatusChange(form)}
+                  >
+                    {updatingStatusId === form.id
+                      ? "Updating..."
+                      : form.status === "published"
+                        ? "Unpublish"
+                        : "Publish"}
+                  </Button>
                 </Stack>
+
+                {statusError?.formId === form.id ? (
+                  <Box
+                    sx={{
+                      mt: 2,
+                      p: 1.5,
+                      bgcolor: "grey.50",
+                      borderRadius: 1,
+                      border: "1px solid",
+                      borderColor: "error.light",
+                    }}
+                  >
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: "error.main",
+                        fontWeight: 500,
+                      }}
+                    >
+                      {statusError.message}
+                    </Typography>
+                  </Box>
+                ) : (
+                  form.status === "published" &&
+                  form.publicSlug && (
+                    <Box
+                      sx={{
+                        mt: 2,
+                        p: 1.5,
+                        bgcolor: "grey.50",
+                        borderRadius: 1,
+                        border: "1px solid",
+                        borderColor: "grey.200",
+                      }}
+                    >
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: "text.secondary",
+                          mb: 0.5,
+                        }}
+                      >
+                        Public URL
+                      </Typography>
+
+                      <Stack
+                        sx={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 1,
+                        }}
+                      >
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            flex: 1,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {`${window.location.origin}/f/${form.publicSlug}`}
+                        </Typography>
+
+                        <Button
+                          size="small"
+                          startIcon={<ContentCopyIcon />}
+                          onClick={() =>
+                            handleCopyPublicLink(form.id, form.publicSlug!)
+                          }
+                        >
+                          {copiedFormId === form.id ? "Copied" : "Copy"}
+                        </Button>
+                      </Stack>
+                    </Box>
+                  )
+                )}
               </Paper>
             ))}
           </Stack>

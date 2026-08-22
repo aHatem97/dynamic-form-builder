@@ -47,6 +47,13 @@ export interface FormDetails {
   questions: FormQuestionResponse[];
 }
 
+export interface UpdateFormStatusResponse {
+  id: string;
+  title: string;
+  status: "draft" | "published";
+  publicSlug: string | null;
+}
+
 export function getForms() {
   return apiRequest<FormSummary[]>("/api/forms");
 }
@@ -72,5 +79,12 @@ export function updateForm(id: string, data: CreateFormPayload) {
 export function deleteForm(id: string) {
   return apiRequest<void>(`/api/forms/${id}`, {
     method: "DELETE",
+  });
+}
+
+export function updateFormStatus(id: string, status: "draft" | "published") {
+  return apiRequest<UpdateFormStatusResponse>(`/api/forms/${id}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
   });
 }
