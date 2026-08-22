@@ -89,6 +89,37 @@ export interface SubmissionSummary {
   answerCount: number;
 }
 
+export interface SubmissionAnswer {
+  id: string;
+
+  question: {
+    id: string;
+    label: string;
+    type: ApiQuestionType;
+    required: boolean;
+    position: number;
+  };
+
+  value: string | null;
+
+  file: {
+    name: string;
+    type: string | null;
+  } | null;
+}
+
+export interface SubmissionDetails {
+  id: string;
+  submittedAt: string;
+
+  form: {
+    id: string;
+    title: string;
+  };
+
+  answers: SubmissionAnswer[];
+}
+
 export function getForms() {
   return apiRequest<FormSummary[]>("/api/forms");
 }
@@ -140,4 +171,10 @@ export function submitPublicForm(slug: string, data: FormData) {
 
 export function getFormSubmissions(formId: string) {
   return apiRequest<SubmissionSummary[]>(`/api/forms/${formId}/submissions`);
+}
+
+export function getSubmissionDetails(formId: string, submissionId: string) {
+  return apiRequest<SubmissionDetails>(
+    `/api/forms/${formId}/submissions/${submissionId}`,
+  );
 }
