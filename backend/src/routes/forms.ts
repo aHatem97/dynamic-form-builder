@@ -292,4 +292,44 @@ export async function formRoutes(app: FastifyInstance) {
       return reply.status(204).send();
     },
   );
+
+  app.get<{ Params: { slug: string } }>(
+    "/api/public/forms/:slug",
+    async (request, reply) => {
+      const { slug } = request.params;
+
+      const form = await prisma.form.findFirst({
+        where: {
+          publicSlug: slug,
+          status: "PUBLISHED",
+        },
+        include: {
+          questions: {
+            orderBy: {
+              position: "asc",
+            },
+          },
+        },
+      });
+
+      if (!form) {
+        return reply.status(404).send({
+          message: "Form not found",
+        });
+      }
+
+      return {
+        id: form.id,
+        title: form.title,
+        questions: form.questions.map((question) => ({
+          id: question.id,
+          type: question.type,
+          label: question.label,
+          required: question.required,
+          options: question.options,
+          position: question.position,
+        })),
+      };
+    },
+  );
 }
