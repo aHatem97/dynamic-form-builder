@@ -83,6 +83,12 @@ export interface SubmitFormResponse {
   submittedAt: string;
 }
 
+export interface SubmissionSummary {
+  id: string;
+  submittedAt: string;
+  answerCount: number;
+}
+
 export function getForms() {
   return apiRequest<FormSummary[]>("/api/forms");
 }
@@ -130,4 +136,8 @@ export function submitPublicForm(slug: string, data: FormData) {
       body: data,
     },
   );
+}
+
+export function getFormSubmissions(formId: string) {
+  return apiRequest<SubmissionSummary[]>(`/api/forms/${formId}/submissions`);
 }
