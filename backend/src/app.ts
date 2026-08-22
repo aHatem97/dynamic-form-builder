@@ -1,5 +1,6 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import { db } from "./config/database.js";
 
 export async function buildApp() {
   const app = Fastify({
@@ -14,6 +15,15 @@ export async function buildApp() {
     return {
       status: "ok",
       service: "form-builder-api",
+    };
+  });
+
+  app.get("/api/health/db", async () => {
+    await db.query("SELECT 1");
+
+    return {
+      status: "ok",
+      database: "connected",
     };
   });
 
