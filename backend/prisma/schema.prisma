@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"
@@ -10,4 +5,77 @@ generator client {
 
 datasource db {
   provider = "mysql"
+}
+
+enum FormStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum QuestionType {
+  TEXT
+  MULTIPLE_CHOICE
+  FILE
+}
+
+model Form {
+  id         String     @id @default(uuid()) @db.Char(36)
+  title      String     @db.VarChar(255)
+  status     FormStatus @default(DRAFT)
+  publicSlug String?    @unique @map("public_slug") @db.VarChar(255)
+  createdAt  DateTime   @default(now()) @map("created_at")
+  updatedAt  DateTime   @updatedAt @map("updated_at")
+
+  questions   Question[]
+  submissions Submission[]
+
+  @@map("forms")
+}
+
+model Question {
+  id       String       @id @default(uuid()) @db.Char(36)
+  formId   String       @map("form_id") @db.Char(36)
+  type     QuestionType
+  label    String       @db.VarChar(255)
+  required Boolean      @default(false)
+  options  Json?
+  position Int
+
+  form    Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  answers Answer[]
+
+  @@index([formId])
+  @@map("questions")
+}
+
+model Submission {
+  id          String   @id @default(uuid()) @db.Char(36)
+  formId      String   @map("form_id") @db.Char(36)
+  submittedAt DateTime @default(now()) @map("submitted_at")
+
+  form    Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  answers Answer[]
+
+  @@index([formId])
+  @@map("submissions")
+}
+
+model Answer {
+  id           String @id @default(uuid()) @db.Char(36)
+  submissionId String @map("submission_id") @db.Char(36)
+  questionId   String @map("question_id") @db.Char(36)
+
+  valueText String? @map("value_text") @db.Text
+
+  fileName String? @map("file_name") @db.VarChar(255)
+  fileKey  String? @map("file_key") @db.VarChar(500)
+  fileType String? @map("file_type") @db.VarChar(100)
+
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  question   Question   @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([submissionId, questionId])
+  @@index([submissionId])
+  @@index([questionId])
+  @@map("answers")
 }
