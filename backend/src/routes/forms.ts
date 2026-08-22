@@ -25,6 +25,15 @@ interface UpdateFormStatusBody {
   status: "draft" | "published";
 }
 
+interface SubmitAnswerBody {
+  questionId: string;
+  value?: string;
+}
+
+interface SubmitFormBody {
+  answers: SubmitAnswerBody[];
+}
+
 export async function formRoutes(app: FastifyInstance) {
   app.get("/api/forms", async () => {
     const forms = await prisma.form.findMany({
@@ -332,4 +341,106 @@ export async function formRoutes(app: FastifyInstance) {
       };
     },
   );
+
+  app.post<{
+    Params: { slug: string };
+    Body: SubmitFormBody;
+  }>("/api/public/forms/:slug/submissions", async (request, reply) => {
+    const { slug } = request.params;
+    const { answers = [] } = request.body;
+
+    const form = await prisma.form.findFirst({
+      where: {
+        publicSlug: slug,
+        status: "PUBLISHED",
+      },
+      include: {
+        questions: {
+          orderBy: {
+            position: "asc",
+          },
+        },
+      },
+    });
+
+    if (!form) {
+      return reply.status(404).send({
+        message: "Form not found",
+      });
+    }
+
+    const answerMap = new Map<string, SubmitAnswerBody>();
+
+    for (const answer of answers) {
+      if (answerMap.has(answer.questionId)) {
+        return reply.status(400).send({
+          message: "Duplicate answer submitted",
+        });
+      }
+
+      answerMap.set(answer.questionId, answer);
+    }
+
+    const questionIds = new Set(form.questions.map((question) => question.id));
+
+    for (const answer of answers) {
+      if (!questionIds.has(answer.questionId)) {
+        return reply.status(400).send({
+          message: "Invalid question",
+        });
+      }
+    }
+
+    for (const question of form.questions) {
+      const answer = answerMap.get(question.id);
+      const value = answer?.value?.trim() ?? "";
+
+      if (question.required && question.type !== "FILE" && !value) {
+        return reply.status(400).send({
+          message: `"${question.label}" is required`,
+        });
+      }
+
+      if (question.type === "MULTIPLE_CHOICE" && value) {
+        const options = Array.isArray(question.options)
+          ? question.options.filter(
+              (option): option is string => typeof option === "string",
+            )
+          : [];
+
+        if (!options.includes(value)) {
+          return reply.status(400).send({
+            message: `Invalid option for "${question.label}"`,
+          });
+        }
+      }
+    }
+
+    const answersToSave = form.questions
+      .filter((question) => question.type !== "FILE")
+      .map((question) => {
+        const answer = answerMap.get(question.id);
+        const value = answer?.value?.trim() ?? "";
+
+        return {
+          questionId: question.id,
+          valueText: value,
+        };
+      })
+      .filter((answer) => answer.valueText !== "");
+
+    const submission = await prisma.submission.create({
+      data: {
+        formId: form.id,
+        answers: {
+          create: answersToSave,
+        },
+      },
+    });
+
+    return reply.status(201).send({
+      id: submission.id,
+      submittedAt: submission.submittedAt,
+    });
+  });
 }
