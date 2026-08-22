@@ -1,8 +1,7 @@
-import { StrictMode } from "react";
+// import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { CssBaseline } from "@mui/material";
-import { FormsProvider } from "./context/FormsProvider";
 
 import App from "./App";
 
@@ -11,9 +10,7 @@ createRoot(document.getElementById("root")!).render(
   <BrowserRouter>
     <CssBaseline />
 
-    <FormsProvider>
-      <App />
-    </FormsProvider>
+    <App />
   </BrowserRouter>,
   // </StrictMode>,
 );

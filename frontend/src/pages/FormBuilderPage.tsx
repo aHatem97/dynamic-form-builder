@@ -30,11 +30,11 @@ import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 
 import type { Question, QuestionType } from "../types/forms";
-import { useForms } from "../context/useForms";
+
+import { createForm, type CreateQuestionType } from "../services/forms.service";
 
 function FormBuilderPage() {
   const navigate = useNavigate();
-  const { createForm } = useForms();
 
   const [title, setTitle] = useState("Untitled Form");
 
@@ -42,6 +42,9 @@ function FormBuilderPage() {
   const [questionDialogOpen, setQuestionDialogOpen] = useState(false);
   const [selectedQuestionType, setSelectedQuestionType] =
     useState<QuestionType>("text");
+
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const handleAddQuestion = () => {
     const newQuestion: Question = {
@@ -158,22 +161,42 @@ function FormBuilderPage() {
     );
   };
 
-  const handleCreateForm = () => {
+  const handleCreateForm = async () => {
     const trimmedTitle = title.trim();
 
     if (!trimmedTitle) {
       return;
     }
 
-    createForm({
-      id: crypto.randomUUID(),
-      title: trimmedTitle,
-      status: "draft",
-      questions,
-      submissionCount: 0,
-    });
+    const typeMap: Record<QuestionType, CreateQuestionType> = {
+      text: "TEXT",
+      multiple_choice: "MULTIPLE_CHOICE",
+      file: "FILE",
+    };
 
-    navigate("/forms");
+    try {
+      setSaving(true);
+      setSaveError(null);
+
+      await createForm({
+        title: trimmedTitle,
+        questions: questions.map((question) => ({
+          type: typeMap[question.type],
+          label: question.label.trim(),
+          required: question.required,
+          options:
+            question.type === "multiple_choice" ? question.options : undefined,
+        })),
+      });
+
+      navigate("/forms");
+    } catch (error) {
+      setSaveError(
+        error instanceof Error ? error.message : "Failed to create form",
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -503,10 +526,26 @@ function FormBuilderPage() {
             <Button
               variant="contained"
               onClick={handleCreateForm}
-              disabled={!title.trim()}
+              disabled={
+                saving ||
+                !title.trim() ||
+                questions.some((question) => !question.label.trim())
+              }
             >
-              Create Form
+              {saving ? "Creating..." : "Create Form"}
             </Button>
+
+            {saveError && (
+              <Typography
+                variant="body2"
+                sx={{
+                  color: "error.main",
+                  mt: 2,
+                }}
+              >
+                {saveError}
+              </Typography>
+            )}
           </Stack>
         </Paper>
       </Container>
