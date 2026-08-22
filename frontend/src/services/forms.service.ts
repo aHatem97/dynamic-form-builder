@@ -122,12 +122,12 @@ export function getPublicForm(slug: string) {
   return apiRequest<PublicForm>(`/api/public/forms/${slug}`);
 }
 
-export function submitPublicForm(slug: string, data: SubmitFormPayload) {
+export function submitPublicForm(slug: string, data: FormData) {
   return apiRequest<SubmitFormResponse>(
     `/api/public/forms/${slug}/submissions`,
     {
       method: "POST",
-      body: JSON.stringify(data),
+      body: data,
     },
   );
 }

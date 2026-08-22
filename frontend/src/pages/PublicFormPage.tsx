@@ -29,6 +29,7 @@ function PublicFormPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [files, setFiles] = useState<Record<string, File | null>>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
@@ -74,17 +75,28 @@ function PublicFormPage() {
     }));
   };
 
+  const handleFileChange = (questionId: string, file: File | null) => {
+    setFiles({
+      [questionId]: file,
+    });
+  };
+
   const handleSubmit = async () => {
     if (!form || !slug) {
       return;
     }
 
-    const missingRequiredQuestion = form.questions.find(
-      (question) =>
-        question.required &&
-        question.type !== "FILE" &&
-        !answers[question.id]?.trim(),
-    );
+    const missingRequiredQuestion = form.questions.find((question) => {
+      if (!question.required) {
+        return false;
+      }
+
+      if (question.type === "FILE") {
+        return !files[question.id];
+      }
+
+      return !answers[question.id]?.trim();
+    });
 
     if (missingRequiredQuestion) {
       setSubmitError(`"${missingRequiredQuestion.label}" is required`);
@@ -95,15 +107,31 @@ function PublicFormPage() {
       setSubmitting(true);
       setSubmitError(null);
 
-      await submitPublicForm(slug, {
-        answers: form.questions
-          .filter((question) => question.type !== "FILE")
-          .map((question) => ({
-            questionId: question.id,
-            value: answers[question.id]?.trim() ?? "",
-          }))
-          .filter((answer) => answer.value !== ""),
-      });
+      const formData = new FormData();
+
+      const answerPayload = form.questions
+        .filter((question) => question.type !== "FILE")
+        .map((question) => ({
+          questionId: question.id,
+          value: answers[question.id]?.trim() ?? "",
+        }))
+        .filter((answer) => answer.value !== "");
+
+      formData.append("answers", JSON.stringify(answerPayload));
+
+      for (const question of form.questions) {
+        if (question.type !== "FILE") {
+          continue;
+        }
+
+        const file = files[question.id];
+
+        if (file) {
+          formData.append(question.id, file);
+        }
+      }
+
+      await submitPublicForm(slug, formData);
 
       setSubmitted(true);
     } catch (error) {
@@ -260,10 +288,36 @@ function PublicFormPage() {
                   )}
 
                   {question.type === "FILE" && (
-                    <Button component="label" variant="outlined">
-                      Choose File
-                      <input hidden type="file" />
-                    </Button>
+                    <Stack
+                      sx={{
+                        alignItems: "flex-start",
+                        gap: 1,
+                      }}
+                    >
+                      <Button component="label" variant="outlined">
+                        Choose File
+                        <input
+                          hidden
+                          type="file"
+                          onChange={(event) => {
+                            const file = event.target.files?.[0] ?? null;
+
+                            handleFileChange(question.id, file);
+                          }}
+                        />
+                      </Button>
+
+                      {files[question.id] && (
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            color: "text.secondary",
+                          }}
+                        >
+                          {files[question.id]?.name}
+                        </Typography>
+                      )}
+                    </Stack>
                   )}
                 </Box>
               ))}

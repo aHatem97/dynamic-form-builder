@@ -15,14 +15,14 @@ export async function buildApp() {
     methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   });
 
-  await app.register(formRoutes);
-
   await app.register(multipart, {
     limits: {
       fileSize: 10 * 1024 * 1024,
       files: 10,
     },
   });
+
+  await app.register(formRoutes);
 
   app.get("/api/health", async () => {
     return {
