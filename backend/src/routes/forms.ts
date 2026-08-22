@@ -548,4 +548,45 @@ export async function formRoutes(app: FastifyInstance) {
       submittedAt: submission.submittedAt,
     });
   });
+
+  app.get<{ Params: { id: string } }>(
+    "/api/forms/:id/submissions",
+    async (request, reply) => {
+      const { id } = request.params;
+
+      const form = await prisma.form.findUnique({
+        where: {
+          id,
+        },
+      });
+
+      if (!form) {
+        return reply.status(404).send({
+          message: "Form not found",
+        });
+      }
+
+      const submissions = await prisma.submission.findMany({
+        where: {
+          formId: id,
+        },
+        orderBy: {
+          submittedAt: "desc",
+        },
+        include: {
+          _count: {
+            select: {
+              answers: true,
+            },
+          },
+        },
+      });
+
+      return submissions.map((submission) => ({
+        id: submission.id,
+        submittedAt: submission.submittedAt,
+        answerCount: submission._count.answers,
+      }));
+    },
+  );
 }
