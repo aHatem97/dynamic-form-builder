@@ -589,4 +589,74 @@ export async function formRoutes(app: FastifyInstance) {
       }));
     },
   );
+
+  app.get<{
+    Params: {
+      formId: string;
+      submissionId: string;
+    };
+  }>("/api/forms/:formId/submissions/:submissionId", async (request, reply) => {
+    const { formId, submissionId } = request.params;
+
+    const submission = await prisma.submission.findFirst({
+      where: {
+        id: submissionId,
+        formId,
+      },
+      include: {
+        form: {
+          select: {
+            id: true,
+            title: true,
+          },
+        },
+        answers: {
+          include: {
+            question: true,
+          },
+        },
+      },
+    });
+
+    if (!submission) {
+      return reply.status(404).send({
+        message: "Submission not found",
+      });
+    }
+
+    const answers = submission.answers
+      .sort((a, b) => a.question.position - b.question.position)
+      .map((answer) => ({
+        id: answer.id,
+
+        question: {
+          id: answer.question.id,
+          label: answer.question.label,
+          type: answer.question.type,
+          required: answer.question.required,
+          position: answer.question.position,
+        },
+
+        value: answer.valueText,
+
+        file: answer.fileName
+          ? {
+              name: answer.fileName,
+              type: answer.fileType,
+            }
+          : null,
+      }));
+
+    return {
+      id: submission.id,
+      submittedAt: submission.submittedAt,
+
+      form: {
+        id: submission.form.id,
+        title: submission.form.title,
+      },
+
+      answers,
+    };
+  });
 }
