@@ -12,9 +12,11 @@ import {
 
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import InsertDriveFileOutlinedIcon from "@mui/icons-material/InsertDriveFileOutlined";
+import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 
 import {
   getSubmissionDetails,
+  getSubmissionFileDownloadUrl,
   type SubmissionDetails,
 } from "../services/forms.service";
 
@@ -24,10 +26,15 @@ function SubmissionDetailsPage() {
   const { formId, submissionId } = useParams();
 
   const [submission, setSubmission] = useState<SubmissionDetails | null>(null);
-
   const [loading, setLoading] = useState(true);
-
   const [error, setError] = useState<string | null>(null);
+  const [downloadingAnswerId, setDownloadingAnswerId] = useState<string | null>(
+    null,
+  );
+  const [downloadError, setDownloadError] = useState<{
+    answerId: string;
+    message: string;
+  } | null>(null);
 
   useEffect(() => {
     if (!formId || !submissionId) {
@@ -65,6 +72,41 @@ function SubmissionDetailsPage() {
 
   const displayError =
     !formId || !submissionId ? "Submission not found" : error;
+
+  const handleDownloadFile = async (answerId: string) => {
+    if (!formId || !submissionId) {
+      return;
+    }
+
+    try {
+      setDownloadingAnswerId(answerId);
+      setDownloadError(null);
+
+      const data = await getSubmissionFileDownloadUrl(
+        formId,
+        submissionId,
+        answerId,
+      );
+
+      const link = document.createElement("a");
+
+      link.href = data.url;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      setDownloadError({
+        answerId,
+        message:
+          error instanceof Error ? error.message : "Failed to download file",
+      });
+    } finally {
+      setDownloadingAnswerId(null);
+    }
+  };
 
   return (
     <Box
@@ -179,34 +221,69 @@ function SubmissionDetailsPage() {
                   </Typography>
 
                   {answer.file ? (
-                    <Stack
-                      sx={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: 1,
-                      }}
-                    >
-                      <InsertDriveFileOutlinedIcon
+                    <>
+                      <Stack
                         sx={{
-                          color: "text.secondary",
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 2,
                         }}
-                      />
-
-                      <Box>
-                        <Typography>{answer.file.name}</Typography>
-
-                        {answer.file.type && (
-                          <Typography
-                            variant="body2"
+                      >
+                        <Stack
+                          sx={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            gap: 1,
+                          }}
+                        >
+                          <InsertDriveFileOutlinedIcon
                             sx={{
                               color: "text.secondary",
                             }}
-                          >
-                            {answer.file.type}
-                          </Typography>
-                        )}
-                      </Box>
-                    </Stack>
+                          />
+
+                          <Box>
+                            <Typography>{answer.file.name}</Typography>
+
+                            {answer.file.type && (
+                              <Typography
+                                variant="body2"
+                                sx={{
+                                  color: "text.secondary",
+                                }}
+                              >
+                                {answer.file.type}
+                              </Typography>
+                            )}
+                          </Box>
+                        </Stack>
+
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          startIcon={<DownloadOutlinedIcon />}
+                          disabled={downloadingAnswerId === answer.id}
+                          onClick={() => handleDownloadFile(answer.id)}
+                        >
+                          {downloadingAnswerId === answer.id
+                            ? "Downloading..."
+                            : "Download"}
+                        </Button>
+                      </Stack>
+
+                      {downloadError?.answerId === answer.id && (
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            color: "error.main",
+                            mt: 1.5,
+                          }}
+                        >
+                          {downloadError.message}
+                        </Typography>
+                      )}
+                    </>
                   ) : (
                     <Typography>{answer.value || "No answer"}</Typography>
                   )}

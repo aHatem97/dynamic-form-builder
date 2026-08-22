@@ -120,6 +120,10 @@ export interface SubmissionDetails {
   answers: SubmissionAnswer[];
 }
 
+export interface FileDownloadResponse {
+  url: string;
+}
+
 export function getForms() {
   return apiRequest<FormSummary[]>("/api/forms");
 }
@@ -176,5 +180,15 @@ export function getFormSubmissions(formId: string) {
 export function getSubmissionDetails(formId: string, submissionId: string) {
   return apiRequest<SubmissionDetails>(
     `/api/forms/${formId}/submissions/${submissionId}`,
+  );
+}
+
+export function getSubmissionFileDownloadUrl(
+  formId: string,
+  submissionId: string,
+  answerId: string,
+) {
+  return apiRequest<FileDownloadResponse>(
+    `/api/forms/${formId}/submissions/${submissionId}/answers/${answerId}/file`,
   );
 }
