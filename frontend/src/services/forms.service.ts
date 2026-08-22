@@ -69,6 +69,20 @@ export interface PublicForm {
   questions: PublicFormQuestion[];
 }
 
+export interface SubmitAnswerPayload {
+  questionId: string;
+  value: string;
+}
+
+export interface SubmitFormPayload {
+  answers: SubmitAnswerPayload[];
+}
+
+export interface SubmitFormResponse {
+  id: string;
+  submittedAt: string;
+}
+
 export function getForms() {
   return apiRequest<FormSummary[]>("/api/forms");
 }
@@ -106,4 +120,14 @@ export function updateFormStatus(id: string, status: "draft" | "published") {
 
 export function getPublicForm(slug: string) {
   return apiRequest<PublicForm>(`/api/public/forms/${slug}`);
+}
+
+export function submitPublicForm(slug: string, data: SubmitFormPayload) {
+  return apiRequest<SubmitFormResponse>(
+    `/api/public/forms/${slug}/submissions`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+  );
 }
