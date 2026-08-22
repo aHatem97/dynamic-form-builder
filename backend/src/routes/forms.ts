@@ -1,6 +1,9 @@
 import type { FastifyInstance } from "fastify";
-import { prisma } from "../config/prisma.js";
 import { randomUUID } from "node:crypto";
+import { extname } from "node:path";
+
+import { prisma } from "../config/prisma.js";
+import { uploadFileToS3 } from "../config/s3.js";
 
 type QuestionType = "TEXT" | "MULTIPLE_CHOICE" | "FILE";
 
@@ -344,10 +347,8 @@ export async function formRoutes(app: FastifyInstance) {
 
   app.post<{
     Params: { slug: string };
-    Body: SubmitFormBody;
   }>("/api/public/forms/:slug/submissions", async (request, reply) => {
     const { slug } = request.params;
-    const { answers = [] } = request.body;
 
     const form = await prisma.form.findFirst({
       where: {
@@ -369,6 +370,56 @@ export async function formRoutes(app: FastifyInstance) {
       });
     }
 
+    let answers: SubmitAnswerBody[] = [];
+
+    let uploadedFile: {
+      questionId: string;
+      buffer: Buffer;
+      filename: string;
+      mimetype: string;
+    } | null = null;
+
+    if (request.isMultipart()) {
+      const parts = request.parts();
+
+      for await (const part of parts) {
+        if (part.type === "field") {
+          if (part.fieldname === "answers") {
+            try {
+              answers = JSON.parse(String(part.value)) as SubmitAnswerBody[];
+            } catch {
+              return reply.status(400).send({
+                message: "Invalid answers payload",
+              });
+            }
+          }
+
+          continue;
+        }
+
+        if (uploadedFile) {
+          return reply.status(400).send({
+            message: "Only one file can be uploaded",
+          });
+        }
+
+        uploadedFile = {
+          questionId: part.fieldname,
+          buffer: await part.toBuffer(),
+          filename: part.filename,
+          mimetype: part.mimetype,
+        };
+      }
+    } else {
+      const body = request.body as SubmitFormBody | undefined;
+
+      answers = body?.answers ?? [];
+    }
+
+    const questionMap = new Map(
+      form.questions.map((question) => [question.id, question]),
+    );
+
     const answerMap = new Map<string, SubmitAnswerBody>();
 
     for (const answer of answers) {
@@ -378,24 +429,48 @@ export async function formRoutes(app: FastifyInstance) {
         });
       }
 
+      const question = questionMap.get(answer.questionId);
+
+      if (!question) {
+        return reply.status(400).send({
+          message: "Invalid question",
+        });
+      }
+
+      if (question.type === "FILE") {
+        return reply.status(400).send({
+          message: "File questions must be submitted as files",
+        });
+      }
+
       answerMap.set(answer.questionId, answer);
     }
 
-    const questionIds = new Set(form.questions.map((question) => question.id));
+    if (uploadedFile) {
+      const fileQuestion = questionMap.get(uploadedFile.questionId);
 
-    for (const answer of answers) {
-      if (!questionIds.has(answer.questionId)) {
+      if (!fileQuestion || fileQuestion.type !== "FILE") {
         return reply.status(400).send({
-          message: "Invalid question",
+          message: "Invalid file question",
         });
       }
     }
 
     for (const question of form.questions) {
+      if (question.type === "FILE") {
+        if (question.required && uploadedFile?.questionId !== question.id) {
+          return reply.status(400).send({
+            message: `"${question.label}" is required`,
+          });
+        }
+
+        continue;
+      }
+
       const answer = answerMap.get(question.id);
       const value = answer?.value?.trim() ?? "";
 
-      if (question.required && question.type !== "FILE" && !value) {
+      if (question.required && !value) {
         return reply.status(400).send({
           message: `"${question.label}" is required`,
         });
@@ -416,7 +491,7 @@ export async function formRoutes(app: FastifyInstance) {
       }
     }
 
-    const answersToSave = form.questions
+    const textAnswers = form.questions
       .filter((question) => question.type !== "FILE")
       .map((question) => {
         const answer = answerMap.get(question.id);
@@ -429,11 +504,41 @@ export async function formRoutes(app: FastifyInstance) {
       })
       .filter((answer) => answer.valueText !== "");
 
+    const submissionId = randomUUID();
+
+    let fileAnswer:
+      | {
+          questionId: string;
+          fileName: string;
+          fileKey: string;
+          fileType: string;
+        }
+      | undefined;
+
+    if (uploadedFile) {
+      const extension = extname(uploadedFile.filename);
+
+      const fileKey =
+        `forms/${form.id}/submissions/` +
+        `${submissionId}/${randomUUID()}${extension}`;
+
+      await uploadFileToS3(fileKey, uploadedFile.buffer, uploadedFile.mimetype);
+
+      fileAnswer = {
+        questionId: uploadedFile.questionId,
+        fileName: uploadedFile.filename,
+        fileKey,
+        fileType: uploadedFile.mimetype,
+      };
+    }
+
     const submission = await prisma.submission.create({
       data: {
+        id: submissionId,
         formId: form.id,
+
         answers: {
-          create: answersToSave,
+          create: [...textAnswers, ...(fileAnswer ? [fileAnswer] : [])],
         },
       },
     });

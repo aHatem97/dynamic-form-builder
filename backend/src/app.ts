@@ -1,7 +1,8 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
-import { prisma } from "./config/prisma.js";
+import multipart from "@fastify/multipart";
 
+import { prisma } from "./config/prisma.js";
 import { formRoutes } from "./routes/forms.js";
 
 export async function buildApp() {
@@ -15,6 +16,13 @@ export async function buildApp() {
   });
 
   await app.register(formRoutes);
+
+  await app.register(multipart, {
+    limits: {
+      fileSize: 10 * 1024 * 1024,
+      files: 10,
+    },
+  });
 
   app.get("/api/health", async () => {
     return {
