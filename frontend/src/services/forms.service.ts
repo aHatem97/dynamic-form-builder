@@ -54,6 +54,21 @@ export interface UpdateFormStatusResponse {
   publicSlug: string | null;
 }
 
+export interface PublicFormQuestion {
+  id: string;
+  type: ApiQuestionType;
+  label: string;
+  required: boolean;
+  options: string[] | null;
+  position: number;
+}
+
+export interface PublicForm {
+  id: string;
+  title: string;
+  questions: PublicFormQuestion[];
+}
+
 export function getForms() {
   return apiRequest<FormSummary[]>("/api/forms");
 }
@@ -87,4 +102,8 @@ export function updateFormStatus(id: string, status: "draft" | "published") {
     method: "PATCH",
     body: JSON.stringify({ status }),
   });
+}
+
+export function getPublicForm(slug: string) {
+  return apiRequest<PublicForm>(`/api/public/forms/${slug}`);
 }
