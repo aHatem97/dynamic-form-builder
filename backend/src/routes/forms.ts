@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { extname } from "node:path";
 
 import { prisma } from "../config/prisma.js";
-import { uploadFileToS3 } from "../config/s3.js";
+import { getFileDownloadUrl, uploadFileToS3 } from "../config/s3.js";
 
 type QuestionType = "TEXT" | "MULTIPLE_CHOICE" | "FILE";
 
@@ -659,4 +659,45 @@ export async function formRoutes(app: FastifyInstance) {
       answers,
     };
   });
+
+  app.get<{
+    Params: {
+      formId: string;
+      submissionId: string;
+      answerId: string;
+    };
+  }>(
+    "/api/forms/:formId/submissions/:submissionId/answers/:answerId/file",
+    async (request, reply) => {
+      const { formId, submissionId, answerId } = request.params;
+
+      const answer = await prisma.answer.findFirst({
+        where: {
+          id: answerId,
+          submissionId,
+          submission: {
+            formId,
+          },
+        },
+      });
+
+      if (!answer) {
+        return reply.status(404).send({
+          message: "File not found",
+        });
+      }
+
+      if (!answer.fileKey || !answer.fileName) {
+        return reply.status(404).send({
+          message: "File not found",
+        });
+      }
+
+      const url = await getFileDownloadUrl(answer.fileKey, answer.fileName);
+
+      return {
+        url,
+      };
+    },
+  );
 }
