@@ -58,6 +58,10 @@ function FormBuilderPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const handleAddQuestion = () => {
+    if (selectedQuestionType === "file" && hasFileQuestion) {
+      return;
+    }
+
     const newQuestion: Question = {
       id: crypto.randomUUID(),
       type: selectedQuestionType,
@@ -269,6 +273,10 @@ function FormBuilderPage() {
 
     void loadForm();
   }, [formId]);
+
+  const hasFileQuestion = questions.some(
+    (question) => question.type === "file",
+  );
 
   return (
     <Box
@@ -679,7 +687,10 @@ function FormBuilderPage() {
 
               <MenuItem value="multiple_choice">Multiple Choice</MenuItem>
 
-              <MenuItem value="file">File Upload</MenuItem>
+              <MenuItem value="file" disabled={hasFileQuestion}>
+                File Upload
+                {hasFileQuestion ? " (already added)" : ""}
+              </MenuItem>
             </Select>
           </FormControl>
         </DialogContent>

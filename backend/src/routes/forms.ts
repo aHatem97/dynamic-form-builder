@@ -42,6 +42,10 @@ interface SubmitFormBody {
   answers: SubmitAnswerBody[];
 }
 
+function hasMultipleFileQuestions(questions: CreateQuestionBody[]) {
+  return questions.filter((question) => question.type === "FILE").length > 1;
+}
+
 export async function formRoutes(app: FastifyInstance) {
   app.get("/api/forms", async () => {
     const forms = await prisma.form.findMany({
@@ -116,6 +120,12 @@ export async function formRoutes(app: FastifyInstance) {
       });
     }
 
+    if (hasMultipleFileQuestions(questions ?? [])) {
+      return reply.status(400).send({
+        message: "A form can only contain one file upload question",
+      });
+    }
+
     for (const question of questions ?? []) {
       if (!question.label.trim()) {
         return reply.status(400).send({
@@ -177,6 +187,12 @@ export async function formRoutes(app: FastifyInstance) {
     if (!trimmedTitle) {
       return reply.status(400).send({
         message: "Form title is required",
+      });
+    }
+
+    if (hasMultipleFileQuestions(questions)) {
+      return reply.status(400).send({
+        message: "A form can only contain one file upload question",
       });
     }
 
