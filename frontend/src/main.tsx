@@ -7,13 +7,13 @@ import { FormsProvider } from "./context/FormsProvider";
 import App from "./App";
 
 createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <BrowserRouter>
-      <CssBaseline />
+  // <StrictMode>
+  <BrowserRouter>
+    <CssBaseline />
 
-      <FormsProvider>
-        <App />
-      </FormsProvider>
-    </BrowserRouter>
-  </StrictMode>,
+    <FormsProvider>
+      <App />
+    </FormsProvider>
+  </BrowserRouter>,
+  // </StrictMode>,
 );

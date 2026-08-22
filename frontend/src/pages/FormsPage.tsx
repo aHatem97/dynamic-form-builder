@@ -7,6 +7,7 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
+import { useEffect, useState } from "react";
 
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
@@ -14,12 +15,31 @@ import ListAltIcon from "@mui/icons-material/ListAlt";
 
 import { useNavigate } from "react-router-dom";
 
-import { useForms } from "../context/useForms";
+import { getForms, type FormSummary } from "../services/forms.service";
 
 function FormsPage() {
   const navigate = useNavigate();
-  const { forms } = useForms();
 
+  const [forms, setForms] = useState<FormSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadForms = async () => {
+      try {
+        const data = await getForms();
+        setForms(data);
+      } catch (error) {
+        setError(
+          error instanceof Error ? error.message : "Failed to load forms",
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void loadForms();
+  }, []);
   return (
     <Box
       sx={{
@@ -55,66 +75,76 @@ function FormsPage() {
           </Button>
         </Stack>
 
-        <Stack spacing={2}>
-          {forms.map((form) => (
-            <Paper
-              key={form.id}
-              variant="outlined"
-              sx={{
-                p: 3,
-                borderRadius: 2,
-              }}
-            >
-              <Stack
+        {loading && (
+          <Typography sx={{ color: "text.secondary" }}>
+            Loading forms...
+          </Typography>
+        )}
+
+        {error && <Typography sx={{ color: "error.main" }}>{error}</Typography>}
+
+        {!loading && !error && (
+          <Stack spacing={2}>
+            {forms.map((form) => (
+              <Paper
+                key={form.id}
+                variant="outlined"
                 sx={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "flex-start",
-                  gap: 2,
+                  p: 3,
+                  borderRadius: 2,
                 }}
               >
-                <Box>
-                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                    {form.title}
-                  </Typography>
+                <Stack
+                  sx={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    gap: 2,
+                  }}
+                >
+                  <Box>
+                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                      {form.title}
+                    </Typography>
 
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ mt: 0.5 }}
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mt: 0.5 }}
+                    >
+                      {form.questionCount} questions · {form.submissionCount}{" "}
+                      submissions
+                    </Typography>
+                  </Box>
+
+                  <Chip
+                    size="small"
+                    label={form.status === "published" ? "Published" : "Draft"}
+                    color={form.status === "published" ? "success" : "default"}
+                  />
+                </Stack>
+
+                <Stack sx={{ mt: 3, flexDirection: "row", gap: 1 }}>
+                  <Button
+                    size="small"
+                    startIcon={<EditIcon />}
+                    onClick={() => navigate(`/forms/${form.id}/edit`)}
                   >
-                    {form.questions.length} questions · {form.submissionCount}{" "}
-                    submissions
-                  </Typography>
-                </Box>
+                    Edit
+                  </Button>
 
-                <Chip
-                  size="small"
-                  label={form.status === "published" ? "Published" : "Draft"}
-                  color={form.status === "published" ? "success" : "default"}
-                />
-              </Stack>
-
-              <Stack sx={{ mt: 3, flexDirection: "row", gap: 1 }}>
-                <Button
-                  size="small"
-                  startIcon={<EditIcon />}
-                  onClick={() => navigate(`/forms/${form.id}/edit`)}
-                >
-                  Edit
-                </Button>
-
-                <Button
-                  size="small"
-                  startIcon={<ListAltIcon />}
-                  onClick={() => navigate(`/forms/${form.id}/submissions`)}
-                >
-                  Submissions
-                </Button>
-              </Stack>
-            </Paper>
-          ))}
-        </Stack>
+                  <Button
+                    size="small"
+                    startIcon={<ListAltIcon />}
+                    onClick={() => navigate(`/forms/${form.id}/submissions`)}
+                  >
+                    Submissions
+                  </Button>
+                </Stack>
+              </Paper>
+            ))}
+          </Stack>
+        )}
       </Container>
     </Box>
   );
