@@ -214,4 +214,31 @@ export async function formRoutes(app: FastifyInstance) {
 
     return form;
   });
+
+  app.delete<{ Params: { id: string } }>(
+    "/api/forms/:id",
+    async (request, reply) => {
+      const { id } = request.params;
+
+      const existingForm = await prisma.form.findUnique({
+        where: {
+          id,
+        },
+      });
+
+      if (!existingForm) {
+        return reply.status(404).send({
+          message: "Form not found",
+        });
+      }
+
+      await prisma.form.delete({
+        where: {
+          id,
+        },
+      });
+
+      return reply.status(204).send();
+    },
+  );
 }
