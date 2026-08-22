@@ -14,10 +14,11 @@ import ListAltIcon from "@mui/icons-material/ListAlt";
 
 import { useNavigate } from "react-router-dom";
 
-import { mockForms } from "../data/mockForms";
+import { useForms } from "../context/useForms";
 
 function FormsPage() {
   const navigate = useNavigate();
+  const { forms } = useForms();
 
   return (
     <Box
@@ -55,7 +56,7 @@ function FormsPage() {
         </Stack>
 
         <Stack spacing={2}>
-          {mockForms.map((form) => (
+          {forms.map((form) => (
             <Paper
               key={form.id}
               variant="outlined"
@@ -82,7 +83,7 @@ function FormsPage() {
                     color="text.secondary"
                     sx={{ mt: 0.5 }}
                   >
-                    {form.questionCount} questions · {form.submissionCount}{" "}
+                    {form.questions.length} questions · {form.submissionCount}{" "}
                     submissions
                   </Typography>
                 </Box>

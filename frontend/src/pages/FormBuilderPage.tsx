@@ -30,9 +30,11 @@ import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 
 import type { Question, QuestionType } from "../types/forms";
+import { useForms } from "../context/useForms";
 
 function FormBuilderPage() {
   const navigate = useNavigate();
+  const { createForm } = useForms();
 
   const [title, setTitle] = useState("Untitled Form");
 
@@ -154,6 +156,24 @@ function FormBuilderPage() {
         };
       }),
     );
+  };
+
+  const handleCreateForm = () => {
+    const trimmedTitle = title.trim();
+
+    if (!trimmedTitle) {
+      return;
+    }
+
+    createForm({
+      id: crypto.randomUUID(),
+      title: trimmedTitle,
+      status: "draft",
+      questions,
+      submissionCount: 0,
+    });
+
+    navigate("/forms");
   };
 
   return (
@@ -472,6 +492,22 @@ function FormBuilderPage() {
               ))}
             </Stack>
           )}
+
+          <Stack
+            sx={{
+              mt: 4,
+              flexDirection: "row",
+              justifyContent: "flex-end",
+            }}
+          >
+            <Button
+              variant="contained"
+              onClick={handleCreateForm}
+              disabled={!title.trim()}
+            >
+              Create Form
+            </Button>
+          </Stack>
         </Paper>
       </Container>
 

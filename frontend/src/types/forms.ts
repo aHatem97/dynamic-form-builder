@@ -4,7 +4,7 @@ export interface Form {
   id: string;
   title: string;
   status: FormStatus;
-  questionCount: number;
+  questions: Question[];
   submissionCount: number;
 }
 
