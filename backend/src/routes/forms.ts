@@ -4,6 +4,7 @@ import { extname } from "node:path";
 
 import { prisma } from "../config/prisma.js";
 import { getFileDownloadUrl, uploadFileToS3 } from "../config/s3.js";
+import { Prisma } from "../generated/prisma/client.js";
 
 type QuestionType = "TEXT" | "MULTIPLE_CHOICE" | "FILE";
 
@@ -19,9 +20,13 @@ interface CreateFormBody {
   questions: CreateQuestionBody[];
 }
 
+interface UpdateQuestionBody extends CreateQuestionBody {
+  id: string;
+}
+
 interface UpdateFormBody {
   title: string;
-  questions: CreateQuestionBody[];
+  questions: UpdateQuestionBody[];
 }
 
 interface UpdateFormStatusBody {
@@ -46,7 +51,11 @@ export async function formRoutes(app: FastifyInstance) {
       include: {
         _count: {
           select: {
-            questions: true,
+            questions: {
+              where: {
+                isArchived: false,
+              },
+            },
             submissions: true,
           },
         },
@@ -76,6 +85,9 @@ export async function formRoutes(app: FastifyInstance) {
         },
         include: {
           questions: {
+            where: {
+              isArchived: false,
+            },
             orderBy: {
               position: "asc",
             },
@@ -158,7 +170,7 @@ export async function formRoutes(app: FastifyInstance) {
     Body: UpdateFormBody;
   }>("/api/forms/:id", async (request, reply) => {
     const { id } = request.params;
-    const { title, questions } = request.body;
+    const { title, questions = [] } = request.body;
 
     const trimmedTitle = title?.trim();
 
@@ -168,7 +180,7 @@ export async function formRoutes(app: FastifyInstance) {
       });
     }
 
-    for (const question of questions ?? []) {
+    for (const question of questions) {
       if (!question.label.trim()) {
         return reply.status(400).send({
           message: "Question label is required",
@@ -185,42 +197,148 @@ export async function formRoutes(app: FastifyInstance) {
       }
     }
 
-    const existingForm = await prisma.form.findUnique({
+    const form = await prisma.form.findUnique({
       where: {
         id,
       },
+      include: {
+        questions: true,
+      },
     });
 
-    if (!existingForm) {
+    if (!form) {
       return reply.status(404).send({
         message: "Form not found",
       });
     }
 
-    const form = await prisma.form.update({
+    const incomingIds = questions.map((question) => question.id);
+
+    if (new Set(incomingIds).size !== incomingIds.length) {
+      return reply.status(400).send({
+        message: "Duplicate question IDs",
+      });
+    }
+
+    /*
+     * Make sure an incoming question ID does not already
+     * belong to another form.
+     */
+    if (incomingIds.length > 0) {
+      const questionsWithIncomingIds = await prisma.question.findMany({
+        where: {
+          id: {
+            in: incomingIds,
+          },
+        },
+        select: {
+          id: true,
+          formId: true,
+        },
+      });
+
+      const foreignQuestion = questionsWithIncomingIds.find(
+        (question) => question.formId !== id,
+      );
+
+      if (foreignQuestion) {
+        return reply.status(400).send({
+          message: "Invalid question",
+        });
+      }
+    }
+
+    const existingQuestionIds = new Set(
+      form.questions.map((question) => question.id),
+    );
+
+    const operations = [];
+
+    operations.push(
+      prisma.form.update({
+        where: {
+          id,
+        },
+        data: {
+          title: trimmedTitle,
+        },
+      }),
+    );
+
+    /*
+     * Questions removed from the builder are archived
+     * instead of physically deleted.
+     */
+    operations.push(
+      prisma.question.updateMany({
+        where: {
+          formId: id,
+          isArchived: false,
+          ...(incomingIds.length > 0
+            ? {
+                id: {
+                  notIn: incomingIds,
+                },
+              }
+            : {}),
+        },
+        data: {
+          isArchived: true,
+        },
+      }),
+    );
+
+    questions.forEach((question, index) => {
+      if (existingQuestionIds.has(question.id)) {
+        operations.push(
+          prisma.question.update({
+            where: {
+              id: question.id,
+            },
+            data: {
+              type: question.type,
+              label: question.label.trim(),
+              required: question.required,
+              position: index,
+              options:
+                question.type === "MULTIPLE_CHOICE"
+                  ? question.options
+                  : Prisma.DbNull,
+              isArchived: false,
+            },
+          }),
+        );
+      } else {
+        operations.push(
+          prisma.question.create({
+            data: {
+              id: question.id,
+              formId: id,
+              type: question.type,
+              label: question.label.trim(),
+              required: question.required,
+              position: index,
+              options:
+                question.type === "MULTIPLE_CHOICE"
+                  ? question.options
+                  : undefined,
+            },
+          }),
+        );
+      }
+    });
+
+    await prisma.$transaction(operations);
+
+    const updatedForm = await prisma.form.findUnique({
       where: {
         id,
       },
-      data: {
-        title: trimmedTitle,
-
-        questions: {
-          deleteMany: {},
-
-          create: (questions ?? []).map((question, index) => ({
-            type: question.type,
-            label: question.label.trim(),
-            required: question.required,
-            position: index,
-            options:
-              question.type === "MULTIPLE_CHOICE"
-                ? question.options
-                : undefined,
-          })),
-        },
-      },
       include: {
         questions: {
+          where: {
+            isArchived: false,
+          },
           orderBy: {
             position: "asc",
           },
@@ -228,7 +346,7 @@ export async function formRoutes(app: FastifyInstance) {
       },
     });
 
-    return form;
+    return updatedForm;
   });
 
   app.patch<{
@@ -317,6 +435,9 @@ export async function formRoutes(app: FastifyInstance) {
         },
         include: {
           questions: {
+            where: {
+              isArchived: false,
+            },
             orderBy: {
               position: "asc",
             },
@@ -357,6 +478,9 @@ export async function formRoutes(app: FastifyInstance) {
       },
       include: {
         questions: {
+          where: {
+            isArchived: false,
+          },
           orderBy: {
             position: "asc",
           },

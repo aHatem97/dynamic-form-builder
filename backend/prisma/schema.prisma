@@ -33,13 +33,14 @@ model Form {
 }
 
 model Question {
-  id       String       @id @default(uuid()) @db.Char(36)
-  formId   String       @map("form_id") @db.Char(36)
-  type     QuestionType
-  label    String       @db.VarChar(255)
-  required Boolean      @default(false)
-  options  Json?
-  position Int
+  id         String       @id @default(uuid()) @db.Char(36)
+  formId     String       @map("form_id") @db.Char(36)
+  type       QuestionType
+  label      String       @db.VarChar(255)
+  required   Boolean      @default(false)
+  options    Json?
+  position   Int
+  isArchived Boolean      @default(false) @map("is_archived")
 
   form    Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
   answers Answer[]

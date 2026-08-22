@@ -185,25 +185,31 @@ function FormBuilderPage() {
       file: "FILE",
     };
 
-    const payload = {
-      title: trimmedTitle,
-      questions: questions.map((question) => ({
-        type: typeMap[question.type],
-        label: question.label.trim(),
-        required: question.required,
-        options:
-          question.type === "multiple_choice" ? question.options : undefined,
-      })),
-    };
+    const mappedQuestions = questions.map((question) => ({
+      type: typeMap[question.type],
+      label: question.label.trim(),
+      required: question.required,
+      options:
+        question.type === "multiple_choice" ? question.options : undefined,
+    }));
 
     try {
       setSaving(true);
       setSaveError(null);
 
       if (isEditMode && formId) {
-        await updateForm(formId, payload);
+        await updateForm(formId, {
+          title: trimmedTitle,
+          questions: questions.map((question, index) => ({
+            id: question.id,
+            ...mappedQuestions[index],
+          })),
+        });
       } else {
-        await createForm(payload);
+        await createForm({
+          title: trimmedTitle,
+          questions: mappedQuestions,
+        });
       }
 
       navigate("/forms");

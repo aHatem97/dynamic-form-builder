@@ -20,6 +20,15 @@ export interface CreateQuestionPayload {
   options?: string[];
 }
 
+export interface UpdateQuestionPayload extends CreateQuestionPayload {
+  id: string;
+}
+
+export interface UpdateFormPayload {
+  title: string;
+  questions: UpdateQuestionPayload[];
+}
+
 export interface CreateFormPayload {
   title: string;
   questions: CreateQuestionPayload[];
@@ -139,7 +148,7 @@ export function createForm(data: CreateFormPayload) {
   });
 }
 
-export function updateForm(id: string, data: CreateFormPayload) {
+export function updateForm(id: string, data: UpdateFormPayload) {
   return apiRequest<FormDetails>(`/api/forms/${id}`, {
     method: "PUT",
     body: JSON.stringify(data),
