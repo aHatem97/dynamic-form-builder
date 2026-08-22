@@ -68,3 +68,9 @@ export function updateForm(id: string, data: CreateFormPayload) {
     body: JSON.stringify(data),
   });
 }
+
+export function deleteForm(id: string) {
+  return apiRequest<void>(`/api/forms/${id}`, {
+    method: "DELETE",
+  });
+}

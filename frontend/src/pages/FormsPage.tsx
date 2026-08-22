@@ -6,16 +6,25 @@ import {
   Paper,
   Stack,
   Typography,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
 } from "@mui/material";
 import { useEffect, useState } from "react";
 
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import ListAltIcon from "@mui/icons-material/ListAlt";
+import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 
 import { useNavigate } from "react-router-dom";
 
-import { getForms, type FormSummary } from "../services/forms.service";
+import {
+  deleteForm,
+  getForms,
+  type FormSummary,
+} from "../services/forms.service";
 
 function FormsPage() {
   const navigate = useNavigate();
@@ -23,6 +32,11 @@ function FormsPage() {
   const [forms, setForms] = useState<FormSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [formToDelete, setFormToDelete] = useState<FormSummary | null>(null);
+
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadForms = async () => {
@@ -40,6 +54,31 @@ function FormsPage() {
 
     void loadForms();
   }, []);
+
+  const handleDeleteForm = async () => {
+    if (!formToDelete) {
+      return;
+    }
+
+    try {
+      setDeleting(true);
+      setDeleteError(null);
+
+      await deleteForm(formToDelete.id);
+
+      setForms((currentForms) =>
+        currentForms.filter((form) => form.id !== formToDelete.id),
+      );
+
+      setFormToDelete(null);
+    } catch (error) {
+      setDeleteError(
+        error instanceof Error ? error.message : "Failed to delete form",
+      );
+    } finally {
+      setDeleting(false);
+    }
+  };
   return (
     <Box
       sx={{
@@ -140,12 +179,92 @@ function FormsPage() {
                   >
                     Submissions
                   </Button>
+
+                  <Button
+                    size="small"
+                    startIcon={<DeleteOutlinedIcon />}
+                    onClick={() => setFormToDelete(form)}
+                    sx={{
+                      color: "error.main",
+                    }}
+                  >
+                    Delete
+                  </Button>
                 </Stack>
               </Paper>
             ))}
           </Stack>
         )}
       </Container>
+
+      <Dialog
+        open={Boolean(formToDelete)}
+        onClose={() => {
+          if (!deleting) {
+            setFormToDelete(null);
+            setDeleteError(null);
+          }
+        }}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>Delete Form</DialogTitle>
+
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete{" "}
+            <strong>{formToDelete?.title}</strong>?
+          </Typography>
+
+          <Typography
+            variant="body2"
+            sx={{
+              color: "text.secondary",
+              mt: 1,
+            }}
+          >
+            This action cannot be undone.
+          </Typography>
+
+          {deleteError && (
+            <Typography
+              variant="body2"
+              sx={{
+                color: "error.main",
+                mt: 2,
+              }}
+            >
+              {deleteError}
+            </Typography>
+          )}
+        </DialogContent>
+
+        <DialogActions>
+          <Button
+            disabled={deleting}
+            onClick={() => {
+              setFormToDelete(null);
+              setDeleteError(null);
+            }}
+          >
+            Cancel
+          </Button>
+
+          <Button
+            variant="contained"
+            disabled={deleting}
+            onClick={handleDeleteForm}
+            sx={{
+              bgcolor: "error.main",
+              "&:hover": {
+                bgcolor: "error.dark",
+              },
+            }}
+          >
+            {deleting ? "Deleting..." : "Delete"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
