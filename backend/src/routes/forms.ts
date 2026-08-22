@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
-
 import { prisma } from "../config/prisma.js";
+import { randomUUID } from "node:crypto";
 
 type QuestionType = "TEXT" | "MULTIPLE_CHOICE" | "FILE";
 
@@ -19,6 +19,10 @@ interface CreateFormBody {
 interface UpdateFormBody {
   title: string;
   questions: CreateQuestionBody[];
+}
+
+interface UpdateFormStatusBody {
+  status: "draft" | "published";
 }
 
 export async function formRoutes(app: FastifyInstance) {
@@ -213,6 +217,53 @@ export async function formRoutes(app: FastifyInstance) {
     });
 
     return form;
+  });
+
+  app.patch<{
+    Params: { id: string };
+    Body: UpdateFormStatusBody;
+  }>("/api/forms/:id/status", async (request, reply) => {
+    const { id } = request.params;
+    const { status } = request.body;
+
+    if (status !== "draft" && status !== "published") {
+      return reply.status(400).send({
+        message: "Status must be draft or published",
+      });
+    }
+
+    const existingForm = await prisma.form.findUnique({
+      where: {
+        id,
+      },
+    });
+
+    if (!existingForm) {
+      return reply.status(404).send({
+        message: "Form not found",
+      });
+    }
+
+    const form = await prisma.form.update({
+      where: {
+        id,
+      },
+      data: {
+        status: status === "published" ? "PUBLISHED" : "DRAFT",
+
+        publicSlug:
+          status === "published"
+            ? (existingForm.publicSlug ?? randomUUID())
+            : existingForm.publicSlug,
+      },
+    });
+
+    return {
+      id: form.id,
+      title: form.title,
+      status: form.status.toLowerCase(),
+      publicSlug: form.publicSlug,
+    };
   });
 
   app.delete<{ Params: { id: string } }>(
