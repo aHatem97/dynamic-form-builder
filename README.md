@@ -2,85 +2,65 @@
 
 A full-stack dynamic form builder built with **React + TypeScript** on the frontend and **Fastify + TypeScript** on the backend.
 
-The application allows form creators to build configurable forms, publish them through unique public URLs, collect responses including file uploads, and review submitted answers.
+The application allows form creators to create configurable forms, publish them through unique public URLs, collect responses including file uploads, and review submitted answers.
 
 ## Live Demo
 
-**Live Application:** `ADD_LIVE_FRONTEND_URL_HERE`
-
-**GitHub Repository:** `ADD_GITHUB_REPOSITORY_URL_HERE`
-
-> The live URL will be added after deployment.
-
----
+- **Frontend:** https://dynamic-form-builder-wheat-two.vercel.app
+- **Backend API:** https://dynamic-form-builder-production-9489.up.railway.app
+- **GitHub Repository:** https://github.com/aHatem97/dynamic-form-builder
 
 ## Features
 
 ### Form Management
 
 - Create new forms
-- View all forms
-- Rename and edit existing forms
+- List existing forms
+- Rename and edit forms
 - Delete forms
-- Draft and Published form states
+- Draft and Published states
 - Publish forms using a unique public URL
 - Unpublish and republish forms
 
 ### Dynamic Form Builder
 
-Forms support the following question types:
+Supported question types:
 
 - Text Input
 - Multiple Choice
 - File Upload
 
-Questions can also be:
+Questions can be added, edited, deleted, reordered, and marked as required.
 
-- Added
-- Edited
-- Deleted
-- Reordered
-- Marked as required
-
-Multiple-choice questions support configurable options.
+Multiple Choice questions support configurable options.
 
 For this implementation, each form can contain a maximum of **one File Upload question**.
 
 ### Public Forms
 
-Published forms receive a unique public URL such as:
+Published forms receive a unique public URL using the route:
 
-`/f/:slug`
+```text
+/f/:slug
+```
 
-The public form page:
+The public form page requires no authentication, displays the current active questions, validates required fields and Multiple Choice answers, supports file uploads, and stores submitted answers.
 
-- Does not require authentication
-- Displays the latest active questions
-- Validates required questions
-- Validates multiple-choice values
-- Supports file uploads
-- Stores submitted responses
-
-Draft forms are not accessible through their public URLs.
+Draft forms are not accessible publicly.
 
 ### Submission Management
 
-Each form includes a submissions dashboard where form creators can:
+For each form, creators can view a summarized list of submissions, open individual submissions, inspect submitted answers, and access uploaded files.
 
-- View all submissions
-- See submission dates
-- See the number of submitted answers
-- Open individual submissions
-- View text and multiple-choice responses
-- Access uploaded files
+Uploaded files are stored privately in **Amazon S3**. The backend generates short-lived signed URLs when a creator requests a file.
 
-Uploaded files are stored privately in **Amazon S3** and accessed using short-lived signed download URLs.
+### Historical Submission Preservation
 
-### Submission History
+Questions removed from a form are archived instead of physically deleted.
 
-Questions removed from a form are archived rather than immediately deleted.
+This preserves answers from previous submissions even when the form structure changes later.
 
-This allows previously submitted answers to remain accessible even after the form structure changes.
+Active builder/public-form queries only return non-archived questions, while historical submission details can still resolve archived questions through existing answer relationships.
 
 ---
 
@@ -103,13 +83,20 @@ This allows previously submitted answers to remain accessible even after the for
 
 ### Database
 
-- MySQL / MariaDB
+- MySQL on Railway
 
 ### File Storage
 
 - Amazon S3
 - AWS SDK
 - Signed S3 download URLs
+
+### Deployment
+
+- Frontend: Vercel
+- Backend: Railway
+- Database: Railway MySQL
+- File Storage: Amazon S3
 
 ---
 
@@ -126,35 +113,28 @@ dynamic-form-builder/
 │   │   │   ├── PublicFormPage.tsx
 │   │   │   ├── SubmissionsPage.tsx
 │   │   │   └── SubmissionDetailsPage.tsx
-│   │   │
 │   │   ├── services/
 │   │   │   ├── api.ts
 │   │   │   └── forms.service.ts
-│   │   │
 │   │   ├── types/
 │   │   │   └── forms.ts
-│   │   │
 │   │   ├── App.tsx
 │   │   └── main.tsx
-│   │
+│   ├── vercel.json
 │   └── package.json
 │
 ├── backend/
 │   ├── prisma/
 │   │   ├── migrations/
 │   │   └── schema.prisma
-│   │
 │   ├── src/
 │   │   ├── config/
 │   │   │   ├── prisma.ts
 │   │   │   └── s3.ts
-│   │   │
 │   │   ├── routes/
 │   │   │   └── forms.ts
-│   │   │
 │   │   ├── app.ts
 │   │   └── server.ts
-│   │
 │   ├── prisma.config.ts
 │   └── package.json
 │
@@ -168,25 +148,25 @@ dynamic-form-builder/
 
 Before running the project locally, make sure you have:
 
-- Node.js installed
-- npm installed
-- MySQL or MariaDB running
+- Node.js
+- npm
+- MySQL or MariaDB
 - An AWS account
 - A private Amazon S3 bucket
-- AWS credentials with permission to upload and read objects from that bucket
+- AWS credentials with `s3:PutObject` and `s3:GetObject` permissions for the bucket
 
 ---
 
-## Installation
+## Local Installation
 
 Clone the repository:
 
 ```bash
-git clone YOUR_REPOSITORY_URL
+git clone https://github.com/aHatem97/dynamic-form-builder.git
 cd dynamic-form-builder
 ```
 
-Install the root dependencies:
+Install root dependencies:
 
 ```bash
 npm install
@@ -216,9 +196,9 @@ cd ..
 
 ## Environment Variables
 
-Environment files are not committed to the repository.
+Real `.env` files are not committed to Git.
 
-Example environment files are provided using `.env.example`.
+Use the provided `.env.example` files as a reference.
 
 ### Backend
 
@@ -232,16 +212,17 @@ Example:
 
 ```env
 DATABASE_URL="mysql://USERNAME:PASSWORD@localhost:3306/dynamic_form_builder"
-
 FRONTEND_URL="http://localhost:5173"
 
-AWS_REGION="YOUR_AWS_REGION"
+AWS_REGION="eu-central-1"
 AWS_ACCESS_KEY_ID="YOUR_AWS_ACCESS_KEY_ID"
 AWS_SECRET_ACCESS_KEY="YOUR_AWS_SECRET_ACCESS_KEY"
 AWS_S3_BUCKET="YOUR_S3_BUCKET_NAME"
 ```
 
-Never commit real AWS credentials or database passwords.
+The application reads its database configuration from `DATABASE_URL`.
+
+Do not commit real AWS credentials or database passwords.
 
 ### Frontend
 
@@ -261,47 +242,37 @@ VITE_API_URL="http://localhost:3000"
 
 ## Database Setup
 
-Create a MySQL database:
+Create a local MySQL/MariaDB database:
 
 ```sql
 CREATE DATABASE dynamic_form_builder;
 ```
 
-Make sure `DATABASE_URL` in `backend/.env` points to that database.
+Make sure `DATABASE_URL` in `backend/.env` points to the database.
 
-Then enter the backend directory:
+Then run:
 
 ```bash
 cd backend
-```
-
-Generate the Prisma client:
-
-```bash
 npx prisma generate
-```
-
-Run the migrations:
-
-```bash
 npx prisma migrate dev
 ```
 
-The database tables will be created from the Prisma schema.
+For production deployments, use:
+
+```bash
+npx prisma migrate deploy
+```
 
 ---
 
 ## Amazon S3 Setup
 
-Create an Amazon S3 bucket for uploaded files.
+Create a private S3 bucket with Block Public Access enabled.
 
-The bucket should remain **private**.
+The IAM credentials used by the backend require access to objects in the bucket.
 
-Block Public Access should remain enabled.
-
-The backend IAM credentials need access to the bucket objects.
-
-An example IAM policy is:
+Example policy:
 
 ```json
 {
@@ -309,62 +280,55 @@ An example IAM policy is:
   "Statement": [
     {
       "Effect": "Allow",
-      "Action": [
-        "s3:PutObject",
-        "s3:GetObject"
-      ],
+      "Action": ["s3:PutObject", "s3:GetObject"],
       "Resource": "arn:aws:s3:::YOUR_BUCKET_NAME/*"
     }
   ]
 }
 ```
 
-Uploaded files are not exposed publicly.
-
-When a form creator requests a submitted file, the backend generates a temporary signed S3 URL.
+Uploaded files remain private. The application exposes them through temporary signed download URLs generated by the backend.
 
 ---
 
-## Running the Application
+## Running Locally
 
-From the root project directory:
+From the project root:
 
 ```bash
 npm run dev
 ```
 
-The frontend should be available at:
+Local frontend:
 
 ```text
 http://localhost:5173
 ```
 
-The backend should be available at:
+Local backend:
 
 ```text
 http://localhost:3000
 ```
 
-If preferred, the frontend and backend can also be started separately from their respective directories.
-
 ---
 
-## Building the Project
+## Building
 
-Build the complete project from the root:
+Build the full project from the root:
 
 ```bash
 npm run build
 ```
 
-Frontend build:
+Build the frontend only:
 
 ```bash
 cd frontend
 npm run build
 ```
 
-Backend build:
+Build the backend only:
 
 ```bash
 cd backend
@@ -375,34 +339,36 @@ The backend build also generates the Prisma client.
 
 ---
 
-## Main Application Routes
+## Frontend Routes
 
-| Route | Description |
-|---|---|
-| `/forms` | Forms dashboard |
-| `/forms/create` | Create a new form |
-| `/forms/:formId/edit` | Edit a form |
-| `/forms/:formId/submissions` | View submissions |
+| Route                                      | Description             |
+| ------------------------------------------ | ----------------------- |
+| `/forms`                                   | Forms dashboard         |
+| `/forms/create`                            | Create a form           |
+| `/forms/:formId/edit`                      | Edit a form             |
+| `/forms/:formId/submissions`               | View form submissions   |
 | `/forms/:formId/submissions/:submissionId` | View submission details |
-| `/f/:slug` | Public published form |
+| `/f/:slug`                                 | Public published form   |
+
+Vercel is configured with an SPA rewrite so React Router routes also work when opened directly or refreshed.
 
 ---
 
-## Main API Endpoints
+## API Endpoints
 
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/forms` | List forms |
-| `POST` | `/api/forms` | Create a form |
-| `GET` | `/api/forms/:id` | Get form details |
-| `PUT` | `/api/forms/:id` | Update a form |
-| `DELETE` | `/api/forms/:id` | Delete a form |
-| `PATCH` | `/api/forms/:id/status` | Publish or unpublish a form |
-| `GET` | `/api/public/forms/:slug` | Get a published public form |
-| `POST` | `/api/public/forms/:slug/submissions` | Submit a public form |
-| `GET` | `/api/forms/:id/submissions` | List form submissions |
-| `GET` | `/api/forms/:formId/submissions/:submissionId` | View submission details |
-| `GET` | `/api/forms/:formId/submissions/:submissionId/answers/:answerId/file` | Generate file download URL |
+| Method   | Endpoint                                                              | Description                         |
+| -------- | --------------------------------------------------------------------- | ----------------------------------- |
+| `GET`    | `/api/forms`                                                          | List forms                          |
+| `POST`   | `/api/forms`                                                          | Create a form                       |
+| `GET`    | `/api/forms/:id`                                                      | Get form details                    |
+| `PUT`    | `/api/forms/:id`                                                      | Update a form                       |
+| `DELETE` | `/api/forms/:id`                                                      | Delete a form                       |
+| `PATCH`  | `/api/forms/:id/status`                                               | Publish or unpublish a form         |
+| `GET`    | `/api/public/forms/:slug`                                             | Load a published public form        |
+| `POST`   | `/api/public/forms/:slug/submissions`                                 | Submit a public form                |
+| `GET`    | `/api/forms/:id/submissions`                                          | List form submissions               |
+| `GET`    | `/api/forms/:formId/submissions/:submissionId`                        | View submission details             |
+| `GET`    | `/api/forms/:formId/submissions/:submissionId/answers/:answerId/file` | Generate a signed file download URL |
 
 ---
 
@@ -414,23 +380,23 @@ The backend validates:
 
 - Form titles
 - Question labels
-- Multiple-choice options
+- Multiple Choice options
 - Maximum one File Upload question per form
 - Required answers
 - Required file uploads
 - Submitted question IDs
 - Duplicate answers
-- Multiple-choice values
+- Multiple Choice values
 - File-question associations
-- Published form status before accepting public submissions
+- Published status before accepting a public submission
 
-Backend validation ensures invalid requests cannot bypass frontend validation.
+Server-side validation ensures invalid requests cannot bypass frontend checks.
 
 ---
 
 ## File Uploads
 
-The current implementation supports:
+Current limits:
 
 ```text
 Maximum file size: 10 MB
@@ -438,27 +404,23 @@ Maximum File Upload questions per form: 1
 Maximum uploaded files per submission: 1
 ```
 
-Uploaded files are stored under unique S3 object keys associated with the form and submission.
-
-File metadata is stored in the database while the actual file remains in S3.
+Uploaded file metadata is stored in MySQL while the actual file is stored in Amazon S3.
 
 ---
 
-## Form Editing and Historical Submissions
+## Form Editing and Submission History
 
-Existing questions maintain their database IDs when a form is edited.
+Existing questions retain their IDs when a form is edited.
 
-When a question is removed from the current form, it is marked as archived rather than physically deleted.
+When a creator removes a question, the question is marked as archived instead of being deleted.
 
-Active form pages only load:
+Active form queries use:
 
 ```text
 isArchived = false
 ```
 
-Historical submission details can still access archived questions through their existing answer relationships.
-
-This prevents editing a form from deleting previously submitted answers.
+Historical answers remain linked to archived questions, preventing previous submission data from being removed when the form is edited.
 
 ---
 
@@ -471,98 +433,122 @@ DRAFT
 PUBLISHED
 ```
 
-When a form is published for the first time, a unique UUID-based public slug is generated.
+Publishing a form for the first time generates a unique UUID-based public slug.
 
-Example:
+Unpublishing blocks public access while retaining the slug.
 
-```text
-/f/550e8400-e29b-41d4-a716-446655440000
-```
-
-Unpublishing a form prevents public access while retaining the generated slug.
-
-Republishing the form restores access using the same public URL.
-
----
-
-## Security Notes
-
-- AWS credentials are stored only through environment variables.
-- `.env` files are excluded from Git.
-- S3 files are private.
-- Uploaded files are accessed through short-lived signed URLs.
-- Public submission endpoints only accept submissions for published forms.
-- Question IDs and submitted values are validated server-side.
-- File uploads are associated with the expected File Upload question.
-
-Authentication was not required by the assignment and is therefore outside the scope of this implementation.
-
----
-
-## Bonus Challenge
-
-The optional conditional-logic challenge is not implemented in this version.
-
-The project focuses on completing the required core functionality with a clear and maintainable implementation.
+Republishing restores access through the same URL.
 
 ---
 
 ## Deployment
 
-The application is designed to be deployed using services such as:
+### Frontend — Vercel
+
+Production frontend:
 
 ```text
-Frontend: Vercel / Netlify
-Backend: Render / Railway / AWS
-Database: Managed MySQL / MariaDB
-Files: Amazon S3
+https://dynamic-form-builder-wheat-two.vercel.app
 ```
 
-Production environment variables must be configured on the respective hosting platforms.
-
-For production database deployment, Prisma migrations can be applied using:
-
-```bash
-npx prisma migrate deploy
-```
-
-After deployment, update the frontend:
+Vercel environment variable:
 
 ```env
-VITE_API_URL="YOUR_PRODUCTION_BACKEND_URL"
+VITE_API_URL="https://dynamic-form-builder-production-9489.up.railway.app"
 ```
 
-and backend:
+The Vercel project uses the `frontend` directory as its root.
+
+### Backend — Railway
+
+Production backend:
+
+```text
+https://dynamic-form-builder-production-9489.up.railway.app
+```
+
+Railway service configuration:
+
+```text
+Root Directory: /backend
+Build Command: npm run build
+Pre-deploy Command: npx prisma migrate deploy
+Start Command: npm start
+```
+
+Production backend variables include:
 
 ```env
-FRONTEND_URL="YOUR_PRODUCTION_FRONTEND_URL"
+DATABASE_URL="${{MySQL.MYSQL_URL}}"
+FRONTEND_URL="https://dynamic-form-builder-wheat-two.vercel.app"
+
+AWS_REGION="..."
+AWS_ACCESS_KEY_ID="..."
+AWS_SECRET_ACCESS_KEY="..."
+AWS_S3_BUCKET="..."
 ```
 
-Then add the deployed application URL to the **Live Demo** section at the top of this README.
+Railway automatically provides the runtime `PORT`.
+
+### Database — Railway MySQL
+
+The backend connects to Railway MySQL through the `DATABASE_URL` reference variable.
+
+Prisma migrations are applied during the Railway pre-deploy step.
+
+### File Storage — Amazon S3
+
+Submitted files are stored privately in Amazon S3 and accessed through signed download URLs generated by the Fastify backend.
 
 ---
 
-## Assignment Requirements
+## Security Notes
 
-This implementation covers the required core task:
+- Real `.env` files are excluded from Git
+- AWS credentials are configured through environment variables
+- S3 Block Public Access remains enabled
+- Uploaded files are private
+- File downloads use short-lived signed URLs
+- Public submissions are accepted only for Published forms
+- Question IDs and submitted values are validated server-side
 
-- Form creation and editing
-- Form listing, renaming, and deletion
-- Dynamic question creation
-- Question editing, deletion, and reordering
+Authentication was not required by the assignment and is outside the scope of this implementation.
+
+---
+
+## Assignment Core Requirements
+
+This implementation covers the required core functionality:
+
+- Create and edit forms
+- List forms
+- Rename forms
+- Delete forms
+- Add questions
+- Edit questions
+- Delete questions
+- Reorder questions
 - Text Input questions
 - Multiple Choice questions with configurable options
 - File Upload questions
 - Required questions
 - Draft and Published states
-- Unique public form URLs
-- Unauthenticated public forms
+- Unique public URLs
+- Unauthenticated public form pages
 - Required-field validation
 - File upload handling
 - Submission storage
 - Submission dashboard
 - Individual submission details
 - Uploaded file access
+
+---
+
+## Bonus Challenge
+
+The optional advanced conditional-logic challenge is not implemented in this version.
+
+The project focuses on the complete core assignment functionality.
 
 ---
 
